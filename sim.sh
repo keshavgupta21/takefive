@@ -7,6 +7,7 @@ cd "$SCRIPT_DIR"
 echo "==> Verilating..."
 verilator --cc --exe --build \
     -Wall \
+    -CFLAGS "-std=c++17" \
     --top-module top \
     src/top.sv \
     test/tb_top.cpp \
