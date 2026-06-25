@@ -1,53 +1,60 @@
 #include <cstdlib>
 #include <iostream>
-#include "Vtop.h"
 #include "verilated.h"
+#include "ref.h"
+#include "dut.h"
+
+struct Stimulus {
+    uint8_t a;
+    uint8_t b;
+};
+
+static const Stimulus tests[] = {
+    {  0,   0},
+    {  1,   0},
+    {  0,   1},
+    { 42,  17},
+    { 17,  42},
+    {100, 100},
+    {255,   0},
+    {  0, 255},
+    {255, 255},
+    {128, 127},
+    {127, 128},
+};
 
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
-    Vtop *dut = new Vtop;
+    Ref ref;
+    Dut dut;
 
-    // Reset
-    dut->clk = 0;
-    dut->rst_n = 0;
-    dut->in_data = 0;
-    dut->eval();
-
-    dut->clk = 1;
-    dut->eval();
-    dut->clk = 0;
-    dut->eval();
-
-    dut->rst_n = 1;
+    ref.reset();
+    dut.reset();
 
     int num_errors = 0;
+    int num_tests = sizeof(tests) / sizeof(tests[0]);
 
-    for (int i = 0; i < 256; i++) {
-        dut->in_data = i;
+    for (int i = 0; i < num_tests; i++) {
+        uint8_t a = tests[i].a;
+        uint8_t b = tests[i].b;
 
-        // Rising edge
-        dut->clk = 1;
-        dut->eval();
-        // Falling edge
-        dut->clk = 0;
-        dut->eval();
+        ref.step(a, b);
+        dut.step(a, b);
 
-        if (dut->out_data != i) {
-            std::cerr << "FAIL: cycle " << i
-                      << " expected " << i
-                      << " got " << (int)dut->out_data << std::endl;
+        if (dut.result() != ref.result()) {
+            std::cerr << "FAIL: test " << i
+                      << " a=" << (int)a << " b=" << (int)b
+                      << " expected=" << (int)ref.result()
+                      << " got=" << (int)dut.result() << std::endl;
             num_errors++;
         }
     }
 
     if (num_errors == 0)
-        std::cout << "PASS: all 256 values matched" << std::endl;
+        std::cout << "PASS: all " << num_tests << " tests matched" << std::endl;
     else
         std::cout << "FAIL: " << num_errors << " errors" << std::endl;
-
-    dut->final();
-    delete dut;
 
     return num_errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -1,0 +1,7 @@
+{
+    "top": "core",
+    "sources": [
+        "src/core.sv",
+        "src/exe.sv"
+    ]
+}
