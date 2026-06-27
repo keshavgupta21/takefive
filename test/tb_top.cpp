@@ -1,11 +1,13 @@
 #include <cstdlib>
+#include <cstdint>
 #include <iostream>
 #include <iomanip>
+#include <random>
 #include "verilated.h"
 #include "ref.h"
 #include "dut.h"
 
-static int test_dec(Dut &dut) {
+static int test_dec_directed(Dut &dut) {
     struct Test {
         const char *name;
         uint32_t pc;
@@ -116,7 +118,7 @@ static int test_dec(Dut &dut) {
         bool fail = false;
 
         if (got != ref) {
-            std::cerr << "FAIL dec [" << tests[i].name << "]"
+            std::cerr << "FAIL dec_directed [" << tests[i].name << "]"
                       << "  instr=0x" << std::hex << std::setfill('0')
                       << std::setw(8) << instr << std::dec << "\n"
                       << "  expected: " << ref << "\n"
@@ -125,7 +127,7 @@ static int test_dec(Dut &dut) {
         }
 
         if (dut.pc() != pc) {
-            std::cerr << "FAIL dec [" << tests[i].name << "] pc passthrough"
+            std::cerr << "FAIL dec_directed [" << tests[i].name << "] pc passthrough"
                       << "  expected=0x" << std::hex << std::setfill('0')
                       << std::setw(8) << pc
                       << "  got=0x" << std::setw(8) << dut.pc()
@@ -137,9 +139,52 @@ static int test_dec(Dut &dut) {
     }
 
     if (errors == 0)
-        std::cout << "dec: PASS (" << n << " tests)" << std::endl;
+        std::cout << "dec_directed: PASS (" << n << " tests)" << std::endl;
     else
-        std::cout << "dec: FAIL " << errors << " / " << n << std::endl;
+        std::cout << "dec_directed: FAIL " << errors << " / " << n << std::endl;
+
+    return errors;
+}
+
+static int test_dec_random(Dut &dut, int n) {
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<uint32_t> dist;
+
+    int errors = 0;
+
+    for (int i = 0; i < n; i++) {
+        uint32_t pc    = dist(rng) & ~3u;
+        uint32_t instr = dist(rng);
+        Decoded ref = decode(instr);
+        Decoded got = dut.decode(pc, instr);
+
+        bool fail = false;
+
+        if (got != ref) {
+            std::cerr << "FAIL dec_random [" << i << "]"
+                      << "  instr=0x" << std::hex << std::setfill('0')
+                      << std::setw(8) << instr << std::dec << "\n"
+                      << "  expected: " << ref << "\n"
+                      << "  got:      " << got << "\n";
+            fail = true;
+        }
+
+        if (dut.pc() != pc) {
+            std::cerr << "FAIL dec_random [" << i << "] pc passthrough"
+                      << "  expected=0x" << std::hex << std::setfill('0')
+                      << std::setw(8) << pc
+                      << "  got=0x" << std::setw(8) << dut.pc()
+                      << std::dec << "\n";
+            fail = true;
+        }
+
+        if (fail) errors++;
+    }
+
+    if (errors == 0)
+        std::cout << "dec_random: PASS (" << n << " tests)" << std::endl;
+    else
+        std::cout << "dec_random: FAIL " << errors << " / " << n << std::endl;
 
     return errors;
 }
@@ -150,7 +195,8 @@ int main(int argc, char **argv) {
     Dut dut;
     int errors = 0;
 
-    errors += test_dec(dut);
+    errors += test_dec_directed(dut);
+    errors += test_dec_random(dut, 10000000);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
