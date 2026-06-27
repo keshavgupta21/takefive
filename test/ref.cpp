@@ -105,3 +105,14 @@ Decoded decode(uint32_t instr) {
 
     return d;
 }
+
+// ---- RfRef ----
+
+void RfRef::write(uint8_t rd, bool wen, uint32_t wdata) {
+    if (wen) regs_[rd] = wdata;
+}
+
+uint32_t RfRef::read(uint8_t rs) const {
+    if (rs == 0) return 0;
+    return regs_[rs];
+}

@@ -7,7 +7,7 @@
 #include "ref.h"
 #include "dut.h"
 
-static int test_dec_directed(Dut &dut) {
+static int test_dec_directed(DecDut &dut) {
     struct Test {
         const char *name;
         uint32_t pc;
@@ -146,7 +146,7 @@ static int test_dec_directed(Dut &dut) {
     return errors;
 }
 
-static int test_dec_random(Dut &dut, int n) {
+static int test_dec_random(DecDut &dut, int n) {
     std::mt19937 rng(42);
     std::uniform_int_distribution<uint32_t> dist;
 
@@ -189,14 +189,161 @@ static int test_dec_random(Dut &dut, int n) {
     return errors;
 }
 
+static int check_rf(RfDut &dut, RfRef &ref, const char *name,
+                    uint8_t rs1, uint8_t rs2, int &errors) {
+    dut.set_read(rs1, rs2);
+    uint32_t exp1 = ref.read(rs1), exp2 = ref.read(rs2);
+    uint32_t got1 = dut.rval1(),   got2 = dut.rval2();
+    bool fail = false;
+
+    if (got1 != exp1) {
+        std::cerr << "FAIL rf [" << name << "] rval1"
+                  << " rs1=" << (int)rs1
+                  << " expected=0x" << std::hex << std::setfill('0')
+                  << std::setw(8) << exp1
+                  << " got=0x" << std::setw(8) << got1
+                  << std::dec << "\n";
+        fail = true;
+    }
+    if (got2 != exp2) {
+        std::cerr << "FAIL rf [" << name << "] rval2"
+                  << " rs2=" << (int)rs2
+                  << " expected=0x" << std::hex << std::setfill('0')
+                  << std::setw(8) << exp2
+                  << " got=0x" << std::setw(8) << got2
+                  << std::dec << "\n";
+        fail = true;
+    }
+    if (fail) errors++;
+    return fail ? 1 : 0;
+}
+
+static int test_rf_directed(RfDut &dut) {
+    RfRef ref;
+    int errors = 0;
+    int n = 0;
+
+    // x0 reads as zero without any writes
+    check_rf(dut, ref, "x0 initial", 0, 0, errors); n++;
+
+    // Initialize all registers to known values
+    for (int i = 1; i < 32; i++) {
+        uint32_t val = 0x100 * i + i;
+        ref.write(i, true, val);
+        dut.set_write(i, true, val);
+        dut.tick();
+    }
+
+    // Read back all pairs
+    for (int i = 0; i < 32; i++) {
+        int j = 31 - i;
+        char name[32];
+        snprintf(name, sizeof(name), "readback x%d,x%d", i, j);
+        check_rf(dut, ref, name, i, j, errors); n++;
+    }
+
+    // Write x0 should be ignored
+    ref.write(0, true, 0x12345678);
+    dut.set_write(0, true, 0x12345678);
+    dut.tick();
+    check_rf(dut, ref, "write x0 ignored", 0, 1, errors); n++;
+
+    // Write with wen=0 should not write
+    ref.write(2, false, 0xAAAAAAAA);
+    dut.set_write(2, false, 0xAAAAAAAA);
+    dut.tick();
+    check_rf(dut, ref, "wen=0 no write", 2, 0, errors); n++;
+
+    // Overwrite x1 and verify old value replaced
+    ref.write(1, true, 0xCAFEBABE);
+    dut.set_write(1, true, 0xCAFEBABE);
+    dut.tick();
+    check_rf(dut, ref, "overwrite x1", 1, 1, errors); n++;
+
+    if (errors == 0)
+        std::cout << "rf_directed: PASS (" << n << " tests)" << std::endl;
+    else
+        std::cout << "rf_directed: FAIL " << errors << " / " << n << std::endl;
+
+    return errors;
+}
+
+static int test_rf_random(RfDut &dut, int n) {
+    std::mt19937 rng(99);
+    std::uniform_int_distribution<uint32_t> val_dist;
+    std::uniform_int_distribution<uint8_t>  reg_dist(0, 31);
+    std::bernoulli_distribution coin(0.5);
+
+    RfRef ref;
+    int errors = 0;
+
+    // Initialize all registers so ref and DUT agree
+    for (int i = 1; i < 32; i++) {
+        uint32_t val = val_dist(rng);
+        ref.write(i, true, val);
+        dut.set_write(i, true, val);
+        dut.tick();
+    }
+
+    for (int i = 0; i < n; i++) {
+        if (coin(rng)) {
+            bool wen = coin(rng);
+            uint8_t rd = reg_dist(rng);
+            uint32_t wdata = val_dist(rng);
+            ref.write(rd, wen, wdata);
+            dut.set_write(rd, wen, wdata);
+            dut.tick();
+        }
+
+        if (coin(rng)) {
+            uint8_t rs1 = reg_dist(rng);
+            dut.set_read(rs1, 0);
+            if (dut.rval1() != ref.read(rs1)) {
+                std::cerr << "FAIL rf_random [" << i << "] rval1"
+                          << " rs1=" << (int)rs1
+                          << " expected=0x" << std::hex << std::setfill('0')
+                          << std::setw(8) << ref.read(rs1)
+                          << " got=0x" << std::setw(8) << dut.rval1()
+                          << std::dec << "\n";
+                errors++;
+            }
+        }
+
+        if (coin(rng)) {
+            uint8_t rs2 = reg_dist(rng);
+            dut.set_read(0, rs2);
+            if (dut.rval2() != ref.read(rs2)) {
+                std::cerr << "FAIL rf_random [" << i << "] rval2"
+                          << " rs2=" << (int)rs2
+                          << " expected=0x" << std::hex << std::setfill('0')
+                          << std::setw(8) << ref.read(rs2)
+                          << " got=0x" << std::setw(8) << dut.rval2()
+                          << std::dec << "\n";
+                errors++;
+            }
+        }
+    }
+
+    if (errors == 0)
+        std::cout << "rf_random: PASS (" << n << " tests)" << std::endl;
+    else
+        std::cout << "rf_random: FAIL " << errors << " / " << n << std::endl;
+
+    return errors;
+}
+
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
-    Dut dut;
     int errors = 0;
 
-    errors += test_dec_directed(dut);
-    errors += test_dec_random(dut, 10000000);
+    DecDut dec_dut;
+    errors += test_dec_directed(dec_dut);
+    errors += test_dec_random(dec_dut, 10000000);
+
+    RfDut rf_dut;
+    errors += test_rf_directed(rf_dut);
+    errors += test_rf_random(rf_dut, 10000000);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }

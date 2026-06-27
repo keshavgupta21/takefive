@@ -46,4 +46,5 @@ RTL sources and the top module are defined in `config.json`:
 ```
 
 ## TODOs
+- Check how the RF gets synthesized (make sure it is using a DistRAM primitive)
 - Figure out how to perform STA.

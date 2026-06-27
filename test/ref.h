@@ -20,6 +20,15 @@ std::ostream& operator<<(std::ostream& os, const Decoded& d);
 
 Decoded decode(uint32_t instr);
 
+class RfRef {
+public:
+    void write(uint8_t rd, bool wen, uint32_t wdata);
+    uint32_t read(uint8_t rs) const;
+
+private:
+    uint32_t regs_[32] = {};
+};
+
 inline uint32_t enc_r(uint8_t f7, uint8_t rs2, uint8_t rs1, uint8_t f3,
                       uint8_t rd, uint8_t op) {
     return (f7 << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | op;
