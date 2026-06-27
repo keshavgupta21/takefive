@@ -47,4 +47,6 @@ RTL sources and the top module are defined in `config.json`:
 
 ## TODOs
 - Check how the RF gets synthesized (make sure it is using a DistRAM primitive)
+- Add Vivado synthesis + sta scripts
+- Add fetch, execute modules (single cycle/combinatorial) + tests.
 - Figure out how to perform STA.

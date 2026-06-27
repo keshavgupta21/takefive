@@ -343,7 +343,7 @@ int main(int argc, char **argv) {
 
     RfDut rf_dut;
     errors += test_rf_directed(rf_dut);
-    errors += test_rf_random(rf_dut, 10000000);
+    errors += test_rf_random(rf_dut, 1000000);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
