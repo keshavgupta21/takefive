@@ -3,6 +3,12 @@
 package takefive_pkg;
     typedef struct packed {
         logic        vld;
+        logic [31:0] pc;
+        logic [31:0] inst;
+    } fetch_t;
+
+    typedef struct packed {
+        logic        vld;
         logic [6:0]  opc;
         logic [4:0]  rd;
         logic [4:0]  rs1;

@@ -13,7 +13,11 @@ module core_wrap #(
     input  logic        dbg_pause,
     input  logic [4:0]  dbg_rs,
     output logic [31:0] dbg_pc,
-    output logic [31:0] dbg_rval
+    output logic [31:0] dbg_rval,
+
+    input  logic        rf_wr_en,
+    input  logic [4:0]  rf_wr_rd,
+    input  logic [31:0] rf_wr_data
 );
 
     takefive_pkg::mem_req_t core_imem_req;
@@ -24,23 +28,26 @@ module core_wrap #(
     takefive_pkg::mem_rsp_t core_dmem_rsp;
 
     core #(.DEBUG_EN(1)) u_core(
-        .clk       (clk          ),
-        .rst       (rst          ),
-        .imem_req  (core_imem_req),
-        .imem_rsp  (imem_rsp     ),
-        .dmem_req  (core_dmem_req),
-        .dmem_rsp  (core_dmem_rsp),
-        .dbg_pause (dbg_pause    ),
-        .dbg_rs    (dbg_rs       ),
-        .dbg_pc    (dbg_pc       ),
-        .dbg_rval  (dbg_rval     )
+        .clk         (clk                    ),
+        .rst         (rst                    ),
+        .imem_req    (core_imem_req          ),
+        .imem_rsp    (imem_rsp               ),
+        .dmem_req    (core_dmem_req          ),
+        .dmem_rsp    (core_dmem_rsp          ),
+        .dbg_pause   (dbg_pause              ),
+        .dbg_rs      (dbg_rs                 ),
+        .dbg_pc      (dbg_pc                 ),
+        .dbg_rval    (dbg_rval               ),
+        .dbg_rf_wr   (rf_wr_en               ),
+        .dbg_rf_rd   (rf_wr_rd               ),
+        .dbg_rf_data (rf_wr_data             )
     );
 
     always_comb begin
-        if (wr_en) begin
-            imem_req.vld  = 1'b1;
+        if (dbg_pause) begin
+            imem_req.vld  = wr_en;
             imem_req.addr = wr_addr;
-            imem_req.wen  = 1'b1;
+            imem_req.wen  = wr_en;
             imem_req.data = wr_data;
         end else begin
             imem_req = core_imem_req;

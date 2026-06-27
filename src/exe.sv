@@ -1,17 +1,14 @@
 `include "common.svh"
 
-module exe #(
-    parameter DEBUG_EN = 0
-)(
+module exe
+(
     input  logic [31:0]            pc,
     input  takefive_pkg::inst_t    inst,
     input  takefive_pkg::rvals_t   rvals,
 
     input  takefive_pkg::mem_rsp_t dmem_rsp,
 
-    output takefive_pkg::rfwb_t    rfwb,
-
-    input  logic                   dbg_pause
+    output takefive_pkg::rfwb_t    rfwb
 );
 
     function automatic logic [31:0] alu(
@@ -52,7 +49,7 @@ module exe #(
         rfwb.wen   = 1'b0;
         rfwb.wdata = 32'b0;
 
-        if (inst.vld && (!DEBUG_EN || !dbg_pause)) begin
+        if (inst.vld) begin
             case (inst.opc)
                 takefive_pkg::OPC_REG, takefive_pkg::OPC_IMM: begin
                     rfwb.wen   = 1'b1;

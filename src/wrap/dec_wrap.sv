@@ -1,6 +1,7 @@
 `include "common.svh"
 
 module dec_wrap (
+    input  logic        f_vld,
     input  logic [31:0] f_pc,
     input  logic [31:0] f_inst,
     output logic [31:0] d_pc,
@@ -14,14 +15,17 @@ module dec_wrap (
     output logic [31:0] d_inst_imm
 );
 
+    takefive_pkg::fetch_t fetch;
+    assign fetch.vld  = f_vld;
+    assign fetch.pc   = f_pc;
+    assign fetch.inst = f_inst;
+
     takefive_pkg::inst_t d_inst;
 
     dec u_dec(
-        .f_pc      (f_pc ),
-        .f_inst    (f_inst),
-        .d_pc      (d_pc  ),
-        .d_inst    (d_inst),
-        .dbg_pause (1'b0  )
+        .fetch  (fetch ),
+        .d_pc   (d_pc  ),
+        .d_inst (d_inst)
     );
 
     assign d_inst_vld    = d_inst.vld;

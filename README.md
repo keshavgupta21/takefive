@@ -47,6 +47,7 @@ RTL sources and the top module are defined in `config.json`:
 
 ## TODOs
 - Check how the RF gets synthesized (make sure it is using a DistRAM primitive)
-- Add Vivado synthesis + sta scripts
-- Add fetch, execute modules (single cycle/combinatorial) + tests.
-- Figure out how to perform STA.
+- Add Vivado synthesis + sta scripts or figure out how to perform STA with yosys.
+- Make tests such that they take random simple programs written in C, compile them to riscv asm and then check the regfile.
+- Add distram and blockram utils (that we know get inferred in vivado) and then use these primitives.
+- Make a two cycle latency memory so it can be made with a block ram and then start pipelining!

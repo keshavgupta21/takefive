@@ -44,12 +44,11 @@ module exe_wrap (
     takefive_pkg::rfwb_t rfwb;
 
     exe u_exe(
-        .pc        (pc      ),
-        .inst      (inst    ),
-        .rvals     (rvals   ),
-        .dmem_rsp  (dmem_rsp),
-        .rfwb      (rfwb    ),
-        .dbg_pause (1'b0    )
+        .pc       (pc      ),
+        .inst     (inst    ),
+        .rvals    (rvals   ),
+        .dmem_rsp (dmem_rsp),
+        .rfwb     (rfwb    )
     );
 
     assign rfwb_rd    = rfwb.rd;

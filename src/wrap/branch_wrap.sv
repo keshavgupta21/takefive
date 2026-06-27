@@ -35,11 +35,10 @@ module branch_wrap (
     takefive_pkg::nxt_pc_t nxt_pc;
 
     branch u_branch(
-        .pc        (pc    ),
-        .inst      (inst  ),
-        .rvals     (rvals ),
-        .nxt_pc    (nxt_pc),
-        .dbg_pause (1'b0  )
+        .pc     (pc    ),
+        .inst   (inst  ),
+        .rvals  (rvals ),
+        .nxt_pc (nxt_pc)
     );
 
     assign nxt_pc_vld    = nxt_pc.vld;

@@ -1,40 +1,36 @@
 `include "common.svh"
 
-module dec #(
-    parameter DEBUG_EN = 0
-)(
-    input  logic [31:0]         f_pc,
-    input  logic [31:0]         f_inst,
-    output logic [31:0]         d_pc,
-    output takefive_pkg::inst_t d_inst,
-
-    input  logic                dbg_pause
+module dec
+(
+    input  takefive_pkg::fetch_t fetch,
+    output logic [31:0]          d_pc,
+    output takefive_pkg::inst_t  d_inst
 );
 
-    assign d_pc          = f_pc;
-    assign d_inst.opc    = f_inst[6:0];
-    assign d_inst.rd     = f_inst[11:7];
-    assign d_inst.rs1    = f_inst[19:15];
-    assign d_inst.rs2    = f_inst[24:20];
-    assign d_inst.funct3 = f_inst[14:12];
-    assign d_inst.funct7 = f_inst[31:25];
+    assign d_pc          = fetch.pc;
+    assign d_inst.opc    = fetch.inst[6:0];
+    assign d_inst.rd     = fetch.inst[11:7];
+    assign d_inst.rs1    = fetch.inst[19:15];
+    assign d_inst.rs2    = fetch.inst[24:20];
+    assign d_inst.funct3 = fetch.inst[14:12];
+    assign d_inst.funct7 = fetch.inst[31:25];
 
     always_comb begin
         case (d_inst.opc)
             takefive_pkg::OPC_LOAD, takefive_pkg::OPC_IMM, takefive_pkg::OPC_JALR:
-                d_inst.imm = {{20{f_inst[31]}}, f_inst[31:20]};
+                d_inst.imm = {{20{fetch.inst[31]}}, fetch.inst[31:20]};
 
             takefive_pkg::OPC_STORE:
-                d_inst.imm = {{20{f_inst[31]}}, f_inst[31:25], f_inst[11:7]};
+                d_inst.imm = {{20{fetch.inst[31]}}, fetch.inst[31:25], fetch.inst[11:7]};
 
             takefive_pkg::OPC_BRANCH:
-                d_inst.imm = {{19{f_inst[31]}}, f_inst[31], f_inst[7], f_inst[30:25], f_inst[11:8], 1'b0};
+                d_inst.imm = {{19{fetch.inst[31]}}, fetch.inst[31], fetch.inst[7], fetch.inst[30:25], fetch.inst[11:8], 1'b0};
 
             takefive_pkg::OPC_LUI, takefive_pkg::OPC_AUIPC:
-                d_inst.imm = {f_inst[31:12], 12'b0};
+                d_inst.imm = {fetch.inst[31:12], 12'b0};
 
             takefive_pkg::OPC_JAL:
-                d_inst.imm = {{11{f_inst[31]}}, f_inst[31], f_inst[19:12], f_inst[20], f_inst[30:21], 1'b0};
+                d_inst.imm = {{11{fetch.inst[31]}}, fetch.inst[31], fetch.inst[19:12], fetch.inst[20], fetch.inst[30:21], 1'b0};
 
             default:
                 d_inst.imm = 32'b0;
@@ -96,7 +92,7 @@ module dec #(
                 d_inst.vld = 1'b0;
         endcase
 
-        if (DEBUG_EN && dbg_pause) d_inst.vld = 1'b0;
+        d_inst.vld = d_inst.vld && fetch.vld;
     end
 
 endmodule

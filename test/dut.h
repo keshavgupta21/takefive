@@ -65,6 +65,7 @@ public:
     void set_nxt_pc(bool vld, uint32_t pc, uint32_t nxt_pc);
     void write(uint32_t addr, uint32_t data);
     void clear_write();
+    bool f_vld() const;
     uint32_t f_pc() const;
     uint32_t f_inst() const;
 
@@ -81,6 +82,7 @@ public:
     void set_rst(bool r);
     void set_pause(bool p);
     void write(uint32_t addr, uint32_t data);
+    void write_reg(uint8_t rd, uint32_t data);
     uint32_t read_reg(uint8_t rs);
     uint32_t pc();
 

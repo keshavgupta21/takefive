@@ -126,6 +126,7 @@ public:
     CoreRef(size_t depth = 1024);
     void reset();
     void write_imem(uint32_t addr, uint32_t data);
+    void write_reg(uint8_t rd, uint32_t data);
     void tick();
     uint32_t pc() const;
     uint32_t read_reg(uint8_t rs) const;

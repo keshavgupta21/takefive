@@ -350,9 +350,7 @@ NxtPcResult branch_eval(uint32_t pc, const Decoded& inst,
 // ---- RfRef ----
 
 RfRef::RfRef() {
-    regs_[0] = 0;
-    for (int i = 1; i < 32; i++)
-        regs_[i] = 0x01010101u * i;
+    std::fill(std::begin(regs_), std::end(regs_), 0);
 }
 
 void RfRef::write(uint8_t rd, bool wen, uint32_t wdata) {
@@ -408,6 +406,10 @@ void CoreRef::reset() {
 
 void CoreRef::write_imem(uint32_t addr, uint32_t data) {
     fetch_.write(addr, data);
+}
+
+void CoreRef::write_reg(uint8_t rd, uint32_t data) {
+    rf_.write(rd, true, data);
 }
 
 void CoreRef::tick() {

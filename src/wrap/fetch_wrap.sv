@@ -10,6 +10,7 @@ module fetch_wrap #(
     input  logic [31:0] wr_data,
     input  logic        wr_en,
 
+    output logic        f_vld,
     output logic [31:0] f_pc,
     output logic [31:0] f_inst,
 
@@ -29,16 +30,21 @@ module fetch_wrap #(
     assign nxt_pc.pc     = nxt_pc_pc;
     assign nxt_pc.nxt_pc = nxt_pc_nxt_pc;
 
+    takefive_pkg::fetch_t fetch;
+
     fetch #(.DEBUG_EN(1)) u_fetch(
         .clk       (clk      ),
         .rst       (rst      ),
         .mem_req   (fetch_req),
         .mem_rsp   (mem_rsp  ),
-        .f_pc      (f_pc     ),
-        .f_inst    (f_inst   ),
+        .fetch     (fetch    ),
         .nxt_pc    (nxt_pc   ),
         .dbg_pause (dbg_pause)
     );
+
+    assign f_vld  = fetch.vld;
+    assign f_pc   = fetch.pc;
+    assign f_inst = fetch.inst;
 
     always_comb begin
         if (dbg_pause) begin

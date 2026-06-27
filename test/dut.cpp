@@ -3,6 +3,7 @@
 // ---- DecDut ----
 
 DecDut::DecDut() : model_(new Vdec_wrap) {
+    model_->f_vld  = 1;
     model_->f_pc   = 0;
     model_->f_inst = 0;
     model_->eval();
@@ -14,6 +15,7 @@ DecDut::~DecDut() {
 }
 
 Decoded DecDut::decode(uint32_t pc, uint32_t instr) {
+    model_->f_vld  = 1;
     model_->f_pc   = pc;
     model_->f_inst = instr;
     model_->eval();
@@ -231,19 +233,23 @@ void FetchDut::clear_write() {
     model_->eval();
 }
 
+bool FetchDut::f_vld() const { return model_->f_vld; }
 uint32_t FetchDut::f_pc() const { return model_->f_pc; }
 uint32_t FetchDut::f_inst() const { return model_->f_inst; }
 
 // ---- CoreDut ----
 
 CoreDut::CoreDut() : model_(new Vcore_wrap) {
-    model_->clk       = 0;
-    model_->rst       = 1;
-    model_->wr_addr   = 0;
-    model_->wr_data   = 0;
-    model_->wr_en     = 0;
-    model_->dbg_pause = 0;
-    model_->dbg_rs    = 0;
+    model_->clk        = 0;
+    model_->rst        = 1;
+    model_->wr_addr    = 0;
+    model_->wr_data    = 0;
+    model_->wr_en      = 0;
+    model_->dbg_pause  = 0;
+    model_->dbg_rs     = 0;
+    model_->rf_wr_en   = 0;
+    model_->rf_wr_rd   = 0;
+    model_->rf_wr_data = 0;
     model_->eval();
 }
 
@@ -269,7 +275,10 @@ void CoreDut::set_rst(bool r) {
 
 void CoreDut::set_pause(bool p) {
     model_->dbg_pause = p;
-    if (!p) model_->wr_en = 0;
+    if (!p) {
+        model_->wr_en    = 0;
+        model_->rf_wr_en = 0;
+    }
     model_->eval();
 }
 
@@ -277,6 +286,13 @@ void CoreDut::write(uint32_t addr, uint32_t data) {
     model_->wr_en   = 1;
     model_->wr_addr = addr;
     model_->wr_data = data;
+    model_->eval();
+}
+
+void CoreDut::write_reg(uint8_t rd, uint32_t data) {
+    model_->rf_wr_en   = 1;
+    model_->rf_wr_rd   = rd;
+    model_->rf_wr_data = data;
     model_->eval();
 }
 

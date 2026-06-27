@@ -649,6 +649,7 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
 
     CoreRef ref(depth);
     CoreRef::Stats total = {};
+    std::uniform_int_distribution<uint32_t> val_dist;
     int errors = 0;
 
     for (int r = 0; r < n_rounds; r++) {
@@ -661,6 +662,13 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
             uint32_t inst = pack(gen_random_inst(rng));
             ref.write_imem(i * 4, inst);
             dut.write(i * 4, inst);
+            dut.tick();
+        }
+
+        for (int i = 1; i < 32; i++) {
+            uint32_t val = val_dist(rng);
+            ref.write_reg(i, val);
+            dut.write_reg(i, val);
             dut.tick();
         }
 
