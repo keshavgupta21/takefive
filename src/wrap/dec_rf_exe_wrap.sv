@@ -15,26 +15,24 @@ module dec_rf_exe_wrap (
     takefive_pkg::rvals_t rvals;
     takefive_pkg::rfwb_t  rfwb;
 
-    dec u_dec
-    (
+    dec u_dec(
         .f_pc   (f_pc  ),
         .f_inst (f_inst),
         .d_pc   (d_pc  ),
         .d_inst (d_inst)
     );
 
-    rf u_rf
-    (
-        .clk   (clk        ),
-        .rs1   (d_inst.rs1 ),
-        .rs2   (d_inst.rs2 ),
-        .rvals (rvals      ),
-        .rfwb  ('0         )
+    rf #(.DEBUG_EN(0)) u_rf(
+        .clk       (clk        ),
+        .rs1       (d_inst.rs1 ),
+        .rs2       (d_inst.rs2 ),
+        .rvals     (rvals      ),
+        .rfwb      ('0         ),
+        .dbg_pause (1'b0       )
     );
 
-    exe u_exe
-    (
-        .pc    (d_pc ),
+    exe u_exe(
+        .pc    (d_pc  ),
         .inst  (d_inst),
         .rvals (rvals ),
         .rfwb  (rfwb  )

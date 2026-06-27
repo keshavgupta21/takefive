@@ -34,12 +34,11 @@ module exe_wrap (
 
     takefive_pkg::rfwb_t rfwb;
 
-    exe u_exe
-    (
-        .pc   (pc  ),
-        .inst (inst),
-        .rvals(rvals),
-        .rfwb (rfwb)
+    exe u_exe(
+        .pc    (pc   ),
+        .inst  (inst ),
+        .rvals (rvals),
+        .rfwb  (rfwb )
     );
 
     assign rfwb_rd    = rfwb.rd;

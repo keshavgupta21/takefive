@@ -106,6 +106,42 @@ Decoded decode(uint32_t instr) {
     return d;
 }
 
+Decoded make_inst(bool vld, uint8_t opc, uint8_t rd, uint8_t rs1,
+                  uint8_t rs2, uint8_t f3, uint8_t f7, uint32_t imm) {
+    Decoded d;
+    d.vld    = vld;
+    d.opcode = opc;
+    d.rd     = rd;
+    d.rs1    = rs1;
+    d.rs2    = rs2;
+    d.funct3 = f3;
+    d.funct7 = f7;
+    d.imm    = imm;
+    return d;
+}
+
+const InstType INST_TYPES[] = {
+    {0x33, 0, 0x00}, {0x33, 0, 0x20}, {0x33, 1, 0x00}, {0x33, 2, 0x00},
+    {0x33, 3, 0x00}, {0x33, 4, 0x00}, {0x33, 5, 0x00}, {0x33, 5, 0x20},
+    {0x33, 6, 0x00}, {0x33, 7, 0x00},
+    {0x13, 0, 0x00}, {0x13, 2, 0x00}, {0x13, 3, 0x00}, {0x13, 4, 0x00},
+    {0x13, 6, 0x00}, {0x13, 7, 0x00}, {0x13, 1, 0x00}, {0x13, 5, 0x00},
+    {0x13, 5, 0x20},
+    {0x37, 0, 0x00}, {0x17, 0, 0x00},
+    {0x6F, 0, 0x00}, {0x67, 0, 0x00},
+};
+const int N_INST_TYPES = sizeof(INST_TYPES) / sizeof(INST_TYPES[0]);
+
+Decoded gen_random_inst(std::mt19937 &rng) {
+    std::uniform_int_distribution<uint32_t> val_dist;
+    std::uniform_int_distribution<int>      type_dist(0, N_INST_TYPES - 1);
+    std::uniform_int_distribution<uint8_t>  reg_dist(0, 31);
+
+    const InstType &t = INST_TYPES[type_dist(rng)];
+    return make_inst(true, t.opc, reg_dist(rng), reg_dist(rng), reg_dist(rng),
+                     t.f3, t.f7, val_dist(rng));
+}
+
 uint32_t pack(const Decoded& d) {
     switch (d.opcode) {
         case 0x33: // R-type
@@ -237,3 +273,26 @@ void FetchRef::tick() { pc_ += 4; }
 uint32_t FetchRef::pc() const { return pc_; }
 
 uint32_t FetchRef::inst() const { return mem_[pc_ >> 2]; }
+
+// ---- CoreRef ----
+
+CoreRef::CoreRef(size_t depth) : fetch_(depth) {}
+
+void CoreRef::reset() { fetch_.reset(); }
+
+void CoreRef::write_imem(uint32_t addr, uint32_t data) {
+    fetch_.write(addr, data);
+}
+
+void CoreRef::tick() {
+    Decoded d = decode(fetch_.inst());
+    uint32_t rval1 = rf_.read(d.rs1);
+    uint32_t rval2 = rf_.read(d.rs2);
+    ExeResult r = execute(fetch_.pc(), d, rval1, rval2);
+    rf_.write(r.rfwb_rd, r.rfwb_wen, r.rfwb_wdata);
+    fetch_.tick();
+}
+
+uint32_t CoreRef::pc() const { return fetch_.pc(); }
+
+uint32_t CoreRef::read_reg(uint8_t rs) const { return rf_.read(rs); }

@@ -86,7 +86,10 @@ def sim(use_netlist):
         "-o", "build/tb_top",
     ])
 
-    run([str(ROOT / "build" / "tb_top")])
+    tb_cmd = [str(ROOT / "build" / "tb_top")]
+    if use_netlist:
+        tb_cmd.append("++syn")
+    run(tb_cmd)
 
 def clean():
     import shutil

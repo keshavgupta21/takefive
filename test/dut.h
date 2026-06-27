@@ -5,6 +5,7 @@
 #include "Vexe_wrap.h"
 #include "Vdec_rf_exe_wrap.h"
 #include "Vfetch_wrap.h"
+#include "Vcore_wrap.h"
 #include "ref.h"
 
 class DecDut {
@@ -55,6 +56,22 @@ public:
 
 private:
     Vfetch_wrap *model_;
+};
+
+class CoreDut {
+public:
+    CoreDut();
+    ~CoreDut();
+    void tick();
+    void eval();
+    void set_rst(bool r);
+    void set_pause(bool p);
+    void write(uint32_t addr, uint32_t data);
+    uint32_t read_reg(uint8_t rs);
+    uint32_t pc();
+
+private:
+    Vcore_wrap *model_;
 };
 
 class RfDut {

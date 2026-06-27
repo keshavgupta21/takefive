@@ -1,6 +1,6 @@
 `include "common.svh"
 
-module fetch_wrap #(
+module core_wrap #(
     parameter DEPTH = 1024
 )(
     input  logic        clk,
@@ -10,24 +10,25 @@ module fetch_wrap #(
     input  logic [31:0] wr_data,
     input  logic        wr_en,
 
-    output logic [31:0] f_pc,
-    output logic [31:0] f_inst,
-
-    input  logic        dbg_pause
+    input  logic        dbg_pause,
+    input  logic [4:0]  dbg_rs,
+    output logic [31:0] dbg_pc,
+    output logic [31:0] dbg_rval
 );
 
-    takefive_pkg::mem_req_t fetch_req;
+    takefive_pkg::mem_req_t core_req;
     takefive_pkg::mem_req_t mem_req;
     takefive_pkg::mem_rsp_t mem_rsp;
 
-    fetch #(.DEBUG_EN(1)) u_fetch(
+    core #(.DEBUG_EN(1)) u_core(
         .clk       (clk      ),
         .rst       (rst      ),
-        .mem_req   (fetch_req),
-        .mem_rsp   (mem_rsp  ),
-        .f_pc      (f_pc     ),
-        .f_inst    (f_inst   ),
-        .dbg_pause (dbg_pause)
+        .imem_req  (core_req ),
+        .imem_rsp  (mem_rsp  ),
+        .dbg_pause (dbg_pause),
+        .dbg_rs    (dbg_rs   ),
+        .dbg_pc    (dbg_pc   ),
+        .dbg_rval  (dbg_rval )
     );
 
     always_comb begin
@@ -37,7 +38,7 @@ module fetch_wrap #(
             mem_req.wen  = wr_en;
             mem_req.data = wr_data;
         end else begin
-            mem_req = fetch_req;
+            mem_req = core_req;
         end
     end
 

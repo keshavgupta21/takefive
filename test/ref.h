@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <iostream>
+#include <random>
 #include <vector>
 
 struct Decoded {
@@ -21,6 +22,13 @@ std::ostream& operator<<(std::ostream& os, const Decoded& d);
 
 Decoded decode(uint32_t instr);
 uint32_t pack(const Decoded& d);
+Decoded make_inst(bool vld, uint8_t opc, uint8_t rd, uint8_t rs1,
+                  uint8_t rs2, uint8_t f3, uint8_t f7, uint32_t imm);
+
+struct InstType { uint8_t opc; uint8_t f3; uint8_t f7; };
+extern const InstType INST_TYPES[];
+extern const int N_INST_TYPES;
+Decoded gen_random_inst(std::mt19937 &rng);
 
 class RfRef {
 public:
@@ -59,6 +67,20 @@ public:
 private:
     uint32_t pc_;
     std::vector<uint32_t> mem_;
+};
+
+class CoreRef {
+public:
+    CoreRef(size_t depth = 1024);
+    void reset();
+    void write_imem(uint32_t addr, uint32_t data);
+    void tick();
+    uint32_t pc() const;
+    uint32_t read_reg(uint8_t rs) const;
+
+private:
+    FetchRef fetch_;
+    RfRef    rf_;
 };
 
 inline uint32_t enc_r(uint8_t f7, uint8_t rs2, uint8_t rs1, uint8_t f3,

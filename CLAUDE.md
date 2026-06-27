@@ -41,9 +41,17 @@ When adding a new RTL module: create the `.sv` file in `src/`, add it to `config
 - Interfaces go in `src/intf/`, test wrappers in `src/wrap/`.
 - Testbenches (reference models, stimulus, checks) must be written solely from the spec (`docs/`), never by reading RTL source.
 - Do not modify code (ref, dut, or RTL) when testing reveals a bug. Present the analysis and await further instructions.
-- Align `=` and `<=` operators within a group of assignments. Also align port names in module port lists. Apply alignment rules after every RTL change.
+- Align `=` and `<=` operators within a group of assignments. Also align port names in module port lists. In module instantiations, put `(` after the instance name and `);` after the last port connection. Align the closing `)` of each port connection so they form a vertical column (e.g., `.clk   (clk   ),`). Apply alignment rules after every RTL change.
+  - Example:
+  ```
+  dec u_dec(
+      .f_pc   (f_pc  ),
+      .f_inst (f_inst),
+      .d_pc   (d_pc  ),
+      .d_inst (d_inst)
+  );
+  ```
 - In module port declarations, separate logically distinct groups of ports with blank lines (e.g., clk/rst, read ports, write ports). Instantiations do not need blank lines.
-- In module instantiations, put `(` and `);` on their own lines at the same indent as the instance name. Align the closing `)` of each port connection so they form a vertical column (e.g., `.clk   (clk   ),`).
 - When each branch of an `if`/`else`/`for` contains a single statement, put the statement on the same line as the keyword — no `begin`/`end` needed (e.g., `if (rst) pc <= 0;` / `else pc <= pc + 4;`). Use `begin`/`end` only when a branch has multiple statements.
 - Do not use `import`; refer to package items with `::` (e.g., `takefive_pkg::inst_t`).
 - Never add lint suppression pragmas or comments (e.g., `verilator lint_off`). Fix the underlying issue instead. The only exceptions are in `run.py`: `-Wno-UNUSEDPARAM` (shared package constants are intentionally unused in some per-top compilation units) and `-Wno-UNUSEDSIGNAL` (shared struct types carry fields not used by every module).

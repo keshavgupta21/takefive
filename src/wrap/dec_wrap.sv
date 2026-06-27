@@ -16,8 +16,7 @@ module dec_wrap (
 
     takefive_pkg::inst_t d_inst;
 
-    dec u_dec
-    (
+    dec u_dec(
         .f_pc   (f_pc  ),
         .f_inst (f_inst),
         .d_pc   (d_pc  ),

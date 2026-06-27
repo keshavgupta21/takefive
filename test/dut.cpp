@@ -111,11 +111,12 @@ ExeResult DecRfExeDut::result() const {
 // ---- FetchDut ----
 
 FetchDut::FetchDut() : model_(new Vfetch_wrap) {
-    model_->clk     = 0;
-    model_->rst     = 1;
-    model_->wr_addr = 0;
-    model_->wr_data = 0;
-    model_->wr_en   = 0;
+    model_->clk       = 0;
+    model_->rst       = 1;
+    model_->wr_addr   = 0;
+    model_->wr_data   = 0;
+    model_->wr_en     = 0;
+    model_->dbg_pause = 0;
     model_->eval();
 }
 
@@ -140,19 +141,76 @@ void FetchDut::set_rst(bool r) {
 }
 
 void FetchDut::write(uint32_t addr, uint32_t data) {
+    model_->dbg_pause = 1;
+    model_->wr_en     = 1;
+    model_->wr_addr   = addr;
+    model_->wr_data   = data;
+    model_->eval();
+}
+
+void FetchDut::clear_write() {
+    model_->dbg_pause = 0;
+    model_->wr_en     = 0;
+    model_->eval();
+}
+
+uint32_t FetchDut::f_pc() const { return model_->f_pc; }
+uint32_t FetchDut::f_inst() const { return model_->f_inst; }
+
+// ---- CoreDut ----
+
+CoreDut::CoreDut() : model_(new Vcore_wrap) {
+    model_->clk       = 0;
+    model_->rst       = 1;
+    model_->wr_addr   = 0;
+    model_->wr_data   = 0;
+    model_->wr_en     = 0;
+    model_->dbg_pause = 0;
+    model_->dbg_rs    = 0;
+    model_->eval();
+}
+
+CoreDut::~CoreDut() {
+    model_->final();
+    delete model_;
+}
+
+void CoreDut::tick() {
+    model_->clk = 0;
+    model_->eval();
+    model_->clk = 1;
+    model_->eval();
+}
+
+void CoreDut::eval() {
+    model_->eval();
+}
+
+void CoreDut::set_rst(bool r) {
+    model_->rst = r;
+}
+
+void CoreDut::set_pause(bool p) {
+    model_->dbg_pause = p;
+    model_->eval();
+}
+
+void CoreDut::write(uint32_t addr, uint32_t data) {
     model_->wr_en   = 1;
     model_->wr_addr = addr;
     model_->wr_data = data;
     model_->eval();
 }
 
-void FetchDut::clear_write() {
-    model_->wr_en = 0;
+uint32_t CoreDut::read_reg(uint8_t rs) {
+    model_->dbg_rs = rs;
     model_->eval();
+    return model_->dbg_rval;
 }
 
-uint32_t FetchDut::f_pc() const { return model_->f_pc; }
-uint32_t FetchDut::f_inst() const { return model_->f_inst; }
+uint32_t CoreDut::pc() {
+    return model_->dbg_pc;
+}
 
 // ---- RfDut ----
 
