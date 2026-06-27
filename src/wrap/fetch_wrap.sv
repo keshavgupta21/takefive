@@ -13,12 +13,21 @@ module fetch_wrap #(
     output logic [31:0] f_pc,
     output logic [31:0] f_inst,
 
+    input  logic        nxt_pc_vld,
+    input  logic [31:0] nxt_pc_pc,
+    input  logic [31:0] nxt_pc_nxt_pc,
+
     input  logic        dbg_pause
 );
 
     takefive_pkg::mem_req_t fetch_req;
     takefive_pkg::mem_req_t mem_req;
     takefive_pkg::mem_rsp_t mem_rsp;
+
+    takefive_pkg::nxt_pc_t nxt_pc;
+    assign nxt_pc.vld    = nxt_pc_vld;
+    assign nxt_pc.pc     = nxt_pc_pc;
+    assign nxt_pc.nxt_pc = nxt_pc_nxt_pc;
 
     fetch #(.DEBUG_EN(1)) u_fetch(
         .clk       (clk      ),
@@ -27,6 +36,7 @@ module fetch_wrap #(
         .mem_rsp   (mem_rsp  ),
         .f_pc      (f_pc     ),
         .f_inst    (f_inst   ),
+        .nxt_pc    (nxt_pc   ),
         .dbg_pause (dbg_pause)
     );
 

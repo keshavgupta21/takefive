@@ -25,6 +25,12 @@ package takefive_pkg;
 
     typedef struct packed {
         logic        vld;
+        logic [31:0] pc;
+        logic [31:0] nxt_pc;
+    } nxt_pc_t;
+
+    typedef struct packed {
+        logic        vld;
         logic [31:0] addr;
         logic        wen;
         logic [31:0] data;

@@ -55,12 +55,26 @@ uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub, bool ari);
 ExeResult execute(uint32_t pc, const Decoded& inst,
                   uint32_t rval1, uint32_t rval2);
 
+struct NxtPcResult {
+    bool     vld;
+    uint32_t pc;
+    uint32_t nxt_pc;
+
+    bool operator==(const NxtPcResult& o) const;
+    bool operator!=(const NxtPcResult& o) const;
+};
+
+std::ostream& operator<<(std::ostream& os, const NxtPcResult& r);
+
+NxtPcResult branch_eval(uint32_t pc, const Decoded& inst,
+                        uint32_t rval1, uint32_t rval2);
+
 class FetchRef {
 public:
     FetchRef(size_t depth = 1024);
     void reset();
     void write(uint32_t addr, uint32_t data);
-    void tick();
+    void tick(bool nxt_vld = false, uint32_t nxt = 0);
     uint32_t pc() const;
     uint32_t inst() const;
 
@@ -71,16 +85,30 @@ private:
 
 class CoreRef {
 public:
+    struct Stats {
+        uint64_t cycles;
+        uint64_t valid;
+        uint64_t alu;
+        uint64_t branches_taken;
+        uint64_t branches_not_taken;
+        uint64_t jumps;
+        uint64_t lui_auipc;
+        uint64_t rf_writes;
+    };
+
     CoreRef(size_t depth = 1024);
     void reset();
     void write_imem(uint32_t addr, uint32_t data);
     void tick();
     uint32_t pc() const;
     uint32_t read_reg(uint8_t rs) const;
+    const Stats& stats() const;
+    void print_stats() const;
 
 private:
     FetchRef fetch_;
     RfRef    rf_;
+    Stats    stats_;
 };
 
 inline uint32_t enc_r(uint8_t f7, uint8_t rs2, uint8_t rs1, uint8_t f3,

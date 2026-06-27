@@ -19,8 +19,9 @@ module core #(
     logic [31:0]          f_inst;
     logic [31:0]          d_pc;
     takefive_pkg::inst_t  d_inst;
-    takefive_pkg::rvals_t rvals;
-    takefive_pkg::rfwb_t  rfwb;
+    takefive_pkg::rvals_t  rvals;
+    takefive_pkg::rfwb_t   rfwb;
+    takefive_pkg::nxt_pc_t nxt_pc;
 
     fetch #(.DEBUG_EN(DEBUG_EN)) u_fetch(
         .clk       (clk      ),
@@ -29,6 +30,7 @@ module core #(
         .mem_rsp   (imem_rsp ),
         .f_pc      (f_pc     ),
         .f_inst    (f_inst   ),
+        .nxt_pc    (nxt_pc   ),
         .dbg_pause (dbg_pause)
     );
 
@@ -67,6 +69,13 @@ module core #(
         .inst  (d_inst),
         .rvals (rvals ),
         .rfwb  (rfwb  )
+    );
+
+    branch u_branch(
+        .pc     (d_pc  ),
+        .inst   (d_inst),
+        .rvals  (rvals ),
+        .nxt_pc (nxt_pc)
     );
 
 endmodule

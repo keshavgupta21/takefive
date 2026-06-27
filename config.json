@@ -1,16 +1,17 @@
 {
-    "top": ["dec_wrap", "rf_wrap", "exe_wrap", "dec_rf_exe_wrap", "fetch_wrap", "core_wrap"],
+    "top": ["dec_wrap", "rf_wrap", "exe_wrap", "branch_wrap", "fetch_wrap", "core_wrap"],
     "sources": [
         "src/takefive_pkg.sv",
         "src/dec.sv",
         "src/exe.sv",
         "src/rf.sv",
+        "src/branch.sv",
         "src/wrap/dec_wrap.sv",
         "src/wrap/rf_wrap.sv",
         "src/wrap/exe_wrap.sv",
+        "src/wrap/branch_wrap.sv",
         "src/util/magic_mem.sv",
         "src/fetch.sv",
-        "src/wrap/dec_rf_exe_wrap.sv",
         "src/core.sv",
         "src/wrap/fetch_wrap.sv",
         "src/wrap/core_wrap.sv"

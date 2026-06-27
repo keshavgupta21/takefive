@@ -129,6 +129,8 @@ const InstType INST_TYPES[] = {
     {0x13, 5, 0x20},
     {0x37, 0, 0x00}, {0x17, 0, 0x00},
     {0x6F, 0, 0x00}, {0x67, 0, 0x00},
+    {0x63, 0, 0x00}, {0x63, 1, 0x00}, {0x63, 4, 0x00},
+    {0x63, 5, 0x00}, {0x63, 6, 0x00}, {0x63, 7, 0x00},
 };
 const int N_INST_TYPES = sizeof(INST_TYPES) / sizeof(INST_TYPES[0]);
 
@@ -241,6 +243,62 @@ ExeResult execute(uint32_t pc, const Decoded& inst,
     return r;
 }
 
+// ---- NxtPcResult ----
+
+bool NxtPcResult::operator==(const NxtPcResult& o) const {
+    return vld == o.vld && pc == o.pc && nxt_pc == o.nxt_pc;
+}
+
+bool NxtPcResult::operator!=(const NxtPcResult& o) const { return !(*this == o); }
+
+std::ostream& operator<<(std::ostream& os, const NxtPcResult& r) {
+    os << "vld=" << r.vld
+       << " pc=0x" << std::hex << std::setfill('0')
+       << std::setw(8) << r.pc
+       << " nxt_pc=0x" << std::setw(8) << r.nxt_pc << std::dec;
+    return os;
+}
+
+NxtPcResult branch_eval(uint32_t pc, const Decoded& inst,
+                        uint32_t rval1, uint32_t rval2) {
+    NxtPcResult r;
+    r.vld    = false;
+    r.pc     = pc;
+    r.nxt_pc = 0;
+
+    if (!inst.vld) return r;
+
+    switch (inst.opcode) {
+        case 0x63: { // BRANCH
+            bool cond = false;
+            switch (inst.funct3) {
+                case 0: cond = (rval1 == rval2); break;
+                case 1: cond = (rval1 != rval2); break;
+                case 4: cond = ((int32_t)rval1 <  (int32_t)rval2); break;
+                case 5: cond = ((int32_t)rval1 >= (int32_t)rval2); break;
+                case 6: cond = (rval1 <  rval2); break;
+                case 7: cond = (rval1 >= rval2); break;
+                default: break;
+            }
+            r.vld    = cond;
+            r.nxt_pc = pc + inst.imm;
+            break;
+        }
+        case 0x6F: // JAL
+            r.vld    = true;
+            r.nxt_pc = pc + inst.imm;
+            break;
+        case 0x67: // JALR
+            r.vld    = true;
+            r.nxt_pc = (rval1 + inst.imm) & ~1u;
+            break;
+        default:
+            break;
+    }
+
+    return r;
+}
+
 // ---- RfRef ----
 
 RfRef::RfRef() {
@@ -268,17 +326,23 @@ void FetchRef::write(uint32_t addr, uint32_t data) {
     mem_[addr >> 2] = data;
 }
 
-void FetchRef::tick() { pc_ += 4; }
+void FetchRef::tick(bool nxt_vld, uint32_t nxt) {
+    if (nxt_vld) pc_ = nxt;
+    else         pc_ += 4;
+}
 
 uint32_t FetchRef::pc() const { return pc_; }
 
-uint32_t FetchRef::inst() const { return mem_[pc_ >> 2]; }
+uint32_t FetchRef::inst() const { return mem_[(pc_ >> 2) % mem_.size()]; }
 
 // ---- CoreRef ----
 
-CoreRef::CoreRef(size_t depth) : fetch_(depth) {}
+CoreRef::CoreRef(size_t depth) : fetch_(depth), stats_{} {}
 
-void CoreRef::reset() { fetch_.reset(); }
+void CoreRef::reset() {
+    fetch_.reset();
+    stats_ = {};
+}
 
 void CoreRef::write_imem(uint32_t addr, uint32_t data) {
     fetch_.write(addr, data);
@@ -289,10 +353,39 @@ void CoreRef::tick() {
     uint32_t rval1 = rf_.read(d.rs1);
     uint32_t rval2 = rf_.read(d.rs2);
     ExeResult r = execute(fetch_.pc(), d, rval1, rval2);
+    NxtPcResult br = branch_eval(fetch_.pc(), d, rval1, rval2);
     rf_.write(r.rfwb_rd, r.rfwb_wen, r.rfwb_wdata);
-    fetch_.tick();
+    fetch_.tick(br.vld, br.nxt_pc);
+
+    stats_.cycles++;
+    if (d.vld) {
+        stats_.valid++;
+        switch (d.opcode) {
+            case 0x33: case 0x13: stats_.alu++;               break;
+            case 0x63: if (br.vld) stats_.branches_taken++;
+                       else        stats_.branches_not_taken++; break;
+            case 0x6F: case 0x67: stats_.jumps++;              break;
+            case 0x37: case 0x17: stats_.lui_auipc++;          break;
+            default: break;
+        }
+    }
+    if (r.rfwb_wen && r.rfwb_rd != 0) stats_.rf_writes++;
 }
 
 uint32_t CoreRef::pc() const { return fetch_.pc(); }
 
 uint32_t CoreRef::read_reg(uint8_t rs) const { return rf_.read(rs); }
+
+const CoreRef::Stats& CoreRef::stats() const { return stats_; }
+
+void CoreRef::print_stats() const {
+    auto &s = stats_;
+    std::cout << "  cycles:              " << s.cycles << "\n"
+              << "  valid:               " << s.valid << "\n"
+              << "  alu:                 " << s.alu << "\n"
+              << "  branches_taken:      " << s.branches_taken << "\n"
+              << "  branches_not_taken:  " << s.branches_not_taken << "\n"
+              << "  jumps:               " << s.jumps << "\n"
+              << "  lui_auipc:           " << s.lui_auipc << "\n"
+              << "  rf_writes:           " << s.rf_writes << "\n";
+}

@@ -3,7 +3,7 @@
 #include "Vdec_wrap.h"
 #include "Vrf_wrap.h"
 #include "Vexe_wrap.h"
-#include "Vdec_rf_exe_wrap.h"
+#include "Vbranch_wrap.h"
 #include "Vfetch_wrap.h"
 #include "Vcore_wrap.h"
 #include "ref.h"
@@ -31,15 +31,16 @@ private:
     Vexe_wrap *model_;
 };
 
-class DecRfExeDut {
+class BranchDut {
 public:
-    DecRfExeDut();
-    ~DecRfExeDut();
-    void eval(uint32_t pc, uint32_t inst);
-    ExeResult result() const;
+    BranchDut();
+    ~BranchDut();
+    void eval(uint32_t pc, const Decoded& inst,
+              uint32_t rval1, uint32_t rval2);
+    NxtPcResult result() const;
 
 private:
-    Vdec_rf_exe_wrap *model_;
+    Vbranch_wrap *model_;
 };
 
 class FetchDut {
@@ -49,6 +50,7 @@ public:
     void tick();
     void eval();
     void set_rst(bool r);
+    void set_nxt_pc(bool vld, uint32_t pc, uint32_t nxt_pc);
     void write(uint32_t addr, uint32_t data);
     void clear_write();
     uint32_t f_pc() const;

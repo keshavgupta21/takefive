@@ -425,49 +425,114 @@ static int test_exe_random(ExeDut &dut, int n) {
     return report("exe_random", errors, n);
 }
 
-static int test_dec_rf_exe_random(DecRfExeDut &dut, int n) {
-    std::mt19937 rng(123);
-    std::uniform_int_distribution<uint32_t> dist;
+static int test_branch_directed(BranchDut &dut) {
+    struct Test {
+        const char *name;
+        uint32_t pc;
+        Decoded  inst;
+        uint32_t rval1;
+        uint32_t rval2;
+    };
 
-    RfRef rf_ref;
+    static const Test tests[] = {
+        // ---- BEQ ----
+        {"BEQ taken",     0x100, make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 8),
+         0x12345678, 0x12345678},
+        {"BEQ not taken", 0x104, make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 8),
+         0x12345678, 0x87654321},
+
+        // ---- BNE ----
+        {"BNE taken",     0x200, make_inst(1, 0x63, 0, 1, 2, 1, 0x00, 16),
+         0x00000001, 0x00000002},
+        {"BNE not taken", 0x204, make_inst(1, 0x63, 0, 1, 2, 1, 0x00, 16),
+         0x0000FFFF, 0x0000FFFF},
+
+        // ---- BLT (signed) ----
+        {"BLT taken",     0x300, make_inst(1, 0x63, 0, 1, 2, 4, 0x00, 32),
+         0xFFFFFFFF, 0x00000001},
+        {"BLT not taken", 0x304, make_inst(1, 0x63, 0, 1, 2, 4, 0x00, 32),
+         0x00000001, 0xFFFFFFFF},
+        {"BLT equal",     0x308, make_inst(1, 0x63, 0, 1, 2, 4, 0x00, 32),
+         0x00000005, 0x00000005},
+
+        // ---- BGE (signed) ----
+        {"BGE taken >=",  0x400, make_inst(1, 0x63, 0, 1, 2, 5, 0x00, 64),
+         0x00000001, 0xFFFFFFFF},
+        {"BGE taken ==",  0x404, make_inst(1, 0x63, 0, 1, 2, 5, 0x00, 64),
+         0x00000005, 0x00000005},
+        {"BGE not taken", 0x408, make_inst(1, 0x63, 0, 1, 2, 5, 0x00, 64),
+         0xFFFFFFFF, 0x00000001},
+
+        // ---- BLTU (unsigned) ----
+        {"BLTU taken",     0x500, make_inst(1, 0x63, 0, 1, 2, 6, 0x00, 128),
+         0x00000001, 0xFFFFFFFF},
+        {"BLTU not taken", 0x504, make_inst(1, 0x63, 0, 1, 2, 6, 0x00, 128),
+         0xFFFFFFFF, 0x00000001},
+
+        // ---- BGEU (unsigned) ----
+        {"BGEU taken >=",  0x600, make_inst(1, 0x63, 0, 1, 2, 7, 0x00, 256),
+         0xFFFFFFFF, 0x00000001},
+        {"BGEU taken ==",  0x604, make_inst(1, 0x63, 0, 1, 2, 7, 0x00, 256),
+         0x80000000, 0x80000000},
+        {"BGEU not taken", 0x608, make_inst(1, 0x63, 0, 1, 2, 7, 0x00, 256),
+         0x00000001, 0xFFFFFFFF},
+
+        // ---- BEQ negative offset ----
+        {"BEQ neg offset", 0x200, make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 0xFFFFFFF0),
+         0x00000042, 0x00000042},
+
+        // ---- JAL ----
+        {"JAL +1024",      0x400, make_inst(1, 0x6F, 1, 0, 0, 0, 0x00, 1024),
+         0, 0},
+        {"JAL -8",         0x800, make_inst(1, 0x6F, 0, 0, 0, 0, 0x00, 0xFFFFFFF8),
+         0, 0},
+
+        // ---- JALR ----
+        {"JALR base+imm", 0x100, make_inst(1, 0x67, 1, 2, 0, 0, 0x00, 100),
+         0x00001000, 0},
+        {"JALR LSB clear", 0x100, make_inst(1, 0x67, 1, 2, 0, 0, 0x00, 1),
+         0x00000003, 0},
+
+        // ---- Non-branch opcodes (should produce vld=0) ----
+        {"ADD no redir",  0x100, make_inst(1, 0x33, 1, 2, 3, 0, 0x00, 0),
+         0x0000000A, 0x00000014},
+        {"LUI no redir",  0x300, make_inst(1, 0x37, 1, 0, 0, 0, 0x00, 0xDEADB000),
+         0, 0},
+        {"ADDI no redir", 0x200, make_inst(1, 0x13, 1, 2, 0, 0, 0x00, 100),
+         0x0000000A, 0},
+
+        // ---- Invalid instruction ----
+        {"Invalid",       0x600, make_inst(0, 0x63, 0, 1, 2, 0, 0x00, 8),
+         0x12345678, 0x12345678},
+    };
+
     int errors = 0;
+    int n = sizeof(tests) / sizeof(tests[0]);
 
     for (int i = 0; i < n; i++) {
-        uint32_t pc   = dist(rng) & ~3u;
-        uint32_t inst = dist(rng);
-
-        dut.eval(pc, inst);
-        ExeResult got = dut.result();
-
-        Decoded d = decode(inst);
-        uint32_t rval1 = rf_ref.read(d.rs1);
-        uint32_t rval2 = rf_ref.read(d.rs2);
-        ExeResult ref = execute(pc, d, rval1, rval2);
+        dut.eval(tests[i].pc, tests[i].inst, tests[i].rval1, tests[i].rval2);
+        NxtPcResult ref = branch_eval(tests[i].pc, tests[i].inst,
+                                      tests[i].rval1, tests[i].rval2);
+        NxtPcResult got = dut.result();
 
         if (got != ref) {
-            std::cerr << "FAIL dec_rf_exe_random [" << i << "]"
+            std::cerr << "FAIL branch_directed [" << tests[i].name << "]"
                       << "  pc=0x" << std::hex << std::setfill('0')
-                      << std::setw(8) << pc
-                      << "  inst=0x" << std::setw(8) << inst
-                      << std::dec << "\n"
-                      << "  decoded:  " << d << "\n"
-                      << "  rval1=0x" << std::hex << std::setfill('0')
-                      << std::setw(8) << rval1
-                      << "  rval2=0x" << std::setw(8) << rval2
-                      << std::dec << "\n"
+                      << std::setw(8) << tests[i].pc << std::dec << "\n"
                       << "  expected: " << ref << "\n"
                       << "  got:      " << got << "\n";
             errors++;
         }
     }
 
-    return report("dec_rf_exe_random", errors, n);
+    return report("branch_directed", errors, n);
 }
 
 static int test_fetch_random(FetchDut &dut, int n_rounds) {
     std::mt19937 rng(55);
     std::uniform_int_distribution<uint32_t> val_dist;
     std::uniform_int_distribution<int> len_dist(128, 256);
+    std::bernoulli_distribution redirect_dist(0.1);
 
     FetchRef ref;
     int errors = 0;
@@ -475,6 +540,7 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
     for (int r = 0; r < n_rounds; r++) {
         int n = len_dist(rng);
 
+        dut.set_nxt_pc(false, 0, 0);
         dut.set_rst(true);
         dut.eval();
 
@@ -487,6 +553,7 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
 
         dut.clear_write();
         dut.set_rst(false);
+        dut.set_nxt_pc(false, 0, 0);
         dut.eval();
         ref.reset();
 
@@ -508,8 +575,12 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
                 errors++;
             }
 
+            bool do_redirect = redirect_dist(rng);
+            uint32_t target  = (val_dist(rng) % n) * 4;
+            dut.set_nxt_pc(do_redirect, 0, target);
             dut.tick();
-            ref.tick();
+            ref.tick(do_redirect, target);
+            dut.set_nxt_pc(false, 0, 0);
         }
     }
 
@@ -517,10 +588,12 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
 }
 
 static int test_core_random(CoreDut &dut, int n_rounds) {
+    const int depth = 1024;
     std::mt19937 rng(200);
     std::uniform_int_distribution<int> len_dist(128, 256);
 
-    CoreRef ref;
+    CoreRef ref(depth);
+    CoreRef::Stats total = {};
     int errors = 0;
 
     for (int r = 0; r < n_rounds; r++) {
@@ -529,7 +602,7 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
         dut.set_rst(true);
         dut.set_pause(true);
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < depth; i++) {
             uint32_t inst = pack(gen_random_inst(rng));
             ref.write_imem(i * 4, inst);
             dut.write(i * 4, inst);
@@ -572,9 +645,28 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
                 errors++;
             }
         }
+
+        auto &s = ref.stats();
+        total.cycles             += s.cycles;
+        total.valid              += s.valid;
+        total.alu                += s.alu;
+        total.branches_taken     += s.branches_taken;
+        total.branches_not_taken += s.branches_not_taken;
+        total.jumps              += s.jumps;
+        total.lui_auipc          += s.lui_auipc;
+        total.rf_writes          += s.rf_writes;
     }
 
-    return report("core_random", errors, n_rounds);
+    int rc = report("core_random", errors, n_rounds);
+    std::cout << "  cycles:              " << total.cycles << "\n"
+              << "  valid:               " << total.valid << "\n"
+              << "  alu:                 " << total.alu << "\n"
+              << "  branches_taken:      " << total.branches_taken << "\n"
+              << "  branches_not_taken:  " << total.branches_not_taken << "\n"
+              << "  jumps:               " << total.jumps << "\n"
+              << "  lui_auipc:           " << total.lui_auipc << "\n"
+              << "  rf_writes:           " << total.rf_writes << "\n";
+    return rc;
 }
 
 int main(int argc, char **argv) {
@@ -598,8 +690,8 @@ int main(int argc, char **argv) {
     errors += test_rf_directed(rf_dut);
     errors += test_rf_random(rf_dut, syn ? 100 : 1000000);
 
-    DecRfExeDut dre_dut;
-    errors += test_dec_rf_exe_random(dre_dut, syn ? 100 : 1000000);
+    BranchDut branch_dut;
+    errors += test_branch_directed(branch_dut);
 
     FetchDut fetch_dut;
     errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);

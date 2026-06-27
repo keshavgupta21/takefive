@@ -12,6 +12,8 @@ module fetch #(
     output logic [31:0]            f_pc,
     output logic [31:0]            f_inst,
 
+    input  takefive_pkg::nxt_pc_t  nxt_pc,
+
     input  logic                   dbg_pause
 );
 
@@ -20,13 +22,17 @@ module fetch #(
     generate
         if (DEBUG_EN) begin : g_dbg
             always_ff @(posedge clk) begin
-                if (rst)            pc <= 32'b0;
-                else if (!dbg_pause) pc <= pc + 32'd4;
+                if (rst) pc <= 32'b0;
+                else if (!dbg_pause) begin
+                    if (nxt_pc.vld) pc <= nxt_pc.nxt_pc;
+                    else            pc <= pc + 32'd4;
+                end
             end
         end else begin : g_nodbg
             always_ff @(posedge clk) begin
-                if (rst) pc <= 32'b0;
-                else     pc <= pc + 32'd4;
+                if (rst)             pc <= 32'b0;
+                else if (nxt_pc.vld) pc <= nxt_pc.nxt_pc;
+                else                 pc <= pc + 32'd4;
             end
         end
     endgenerate
