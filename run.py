@@ -86,17 +86,29 @@ def sim(use_netlist):
 
     run([str(ROOT / "build" / "tb_top")])
 
+def clean():
+    import shutil
+    for d in [ROOT / "build", SYN_DIR]:
+        if d.exists():
+            shutil.rmtree(d)
+            print(f"==> Removed {d.relative_to(ROOT)}/")
+
 def main():
     args = set(sys.argv[1:])
-    do_syn = "++syn" in args
-    do_sim = "++sim" in args
+    do_syn   = "++syn" in args
+    do_sim   = "++sim" in args
+    do_clean = "++clean" in args
 
-    if not do_syn and not do_sim:
+    if not do_syn and not do_sim and not do_clean:
         print("Usage: ./run.py ++sim [++syn]")
         print("  ++sim        Simulate with Verilator")
         print("  ++syn        Synthesize with Yosys")
         print("  ++sim ++syn  Synthesize, then simulate the netlist")
+        print("  ++clean      Remove build/ and syn/")
         sys.exit(1)
+
+    if do_clean:
+        clean()
 
     if do_syn:
         syn()
