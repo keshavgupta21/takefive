@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SYN_DIR = ROOT / "syn"
 CONFIG = json.loads((ROOT / "config.json").read_text())
+TOPS = CONFIG["top"]
 
 def run(cmd):
     print(f"==> {cmd[0]}...")
@@ -16,44 +17,50 @@ def run(cmd):
 
 def syn():
     SYN_DIR.mkdir(exist_ok=True)
-
     sources = " ".join(CONFIG["sources"])
-    script = f"""
-        read_verilog -sv {sources};
-        synth -top {CONFIG["top"]};
-        flatten;
-        write_verilog syn/{CONFIG["top"]}.v;
-    """
 
-    print("==> Synthesizing with Yosys...")
-    result = subprocess.run(
-        ["yosys", "-p", script, "-l", str(SYN_DIR / "yosys.log")],
-        cwd=ROOT,
-    )
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-    print(f"==> Done. Netlist written to syn/{CONFIG['top']}.v")
+    for top in TOPS:
+        script = f"""
+            read_verilog -sv {sources};
+            synth -top {top};
+            flatten;
+            write_verilog syn/{top}.v;
+        """
+
+        print(f"==> Synthesizing {top} with Yosys...")
+        result = subprocess.run(
+            ["yosys", "-p", script, "-l", str(SYN_DIR / f"{top}.log")],
+            cwd=ROOT,
+        )
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+        print(f"==> Done. Netlist written to syn/{top}.v")
 
 def sim(use_netlist):
-    if use_netlist:
-        sources = [f"syn/{CONFIG['top']}.v"]
-    else:
-        sources = CONFIG["sources"]
+    for top in TOPS:
+        if use_netlist:
+            sources = [f"syn/{top}.v"]
+        else:
+            sources = CONFIG["sources"]
 
-    run([
-        "verilator", "--cc", "--exe", "--build",
-        "-Wall",
-        "-CFLAGS", "-std=c++17 -I../../test",
-        "--Mdir", "build",
-        "--top-module", CONFIG["top"],
-        *sources,
-        "test/tb_top.cpp",
-        "test/ref.cpp",
-        "test/dut.cpp",
-        "-o", "tb_top",
-    ])
+        mdir = f"build/{top}"
+        (ROOT / mdir).mkdir(parents=True, exist_ok=True)
+        lint = ["-Wall"] if not use_netlist else ["-Wall", "-Wno-UNUSEDSIGNAL"]
 
-    run([str(ROOT / "build" / "tb_top")])
+        run([
+            "verilator", "--cc", "--exe", "--build",
+            *lint,
+            "-CFLAGS", "-std=c++17 -I../../test",
+            "--Mdir", mdir,
+            "--top-module", top,
+            *sources,
+            "test/tb_top.cpp",
+            "test/ref.cpp",
+            "test/dut.cpp",
+            "-o", "tb_top",
+        ])
+
+        run([str(ROOT / mdir / "tb_top")])
 
 def main():
     args = set(sys.argv[1:])

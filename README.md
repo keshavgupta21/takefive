@@ -44,3 +44,6 @@ RTL sources and the top module are defined in `config.json`:
     ]
 }
 ```
+
+## TODOs
+- Add support for illegal instruction detection.

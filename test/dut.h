@@ -1,16 +1,15 @@
 #pragma once
 #include <cstdint>
-#include "Vcore.h"
+#include "Vdec_wrap.h"
+#include "ref.h"
 
 class Dut {
 public:
     Dut();
     ~Dut();
-    void reset();
-    void step(uint8_t a, uint8_t b);
-    uint8_t result() const;
+    Decoded decode(uint32_t pc, uint32_t instr);
+    uint32_t pc() const;
 
 private:
-    Vcore *model_;
-    void tick();
+    Vdec_wrap *model_;
 };
