@@ -15,6 +15,11 @@ def run(cmd):
     if result.returncode != 0:
         sys.exit(result.returncode)
 
+def verilator_root():
+    return subprocess.check_output(
+        ["verilator", "--getenv", "VERILATOR_ROOT"], text=True
+    ).strip()
+
 def syn():
     SYN_DIR.mkdir(exist_ok=True)
     sources = " ".join(CONFIG["sources"])
@@ -37,6 +42,7 @@ def syn():
         print(f"==> Done. Netlist written to syn/{top}.v")
 
 def sim(use_netlist):
+    # Phase 1: verilate all top modules (model libraries only)
     for top in TOPS:
         if use_netlist:
             sources = [f"syn/{top}.v"]
@@ -45,23 +51,40 @@ def sim(use_netlist):
 
         mdir = f"build/{top}"
         (ROOT / mdir).mkdir(parents=True, exist_ok=True)
-        lint = ["-Wall"] if not use_netlist else ["-Wall", "-Wno-UNUSEDSIGNAL"]
 
         run([
-            "verilator", "--cc", "--exe", "--build",
-            *lint,
+            "verilator", "--cc", "--build",
+            "-Wall",
+            "-CFLAGS", "-std=c++17",
             "-Isrc",
-            "-CFLAGS", "-std=c++17 -I../../test",
             "--Mdir", mdir,
             "--top-module", top,
             *sources,
-            "test/tb_top.cpp",
-            "test/ref.cpp",
-            "test/dut.cpp",
-            "-o", "tb_top",
         ])
 
-        run([str(ROOT / mdir / "tb_top")])
+    # Phase 2: compile testbench once, link against all models
+    vinc = f"{verilator_root()}/include"
+    first = f"build/{TOPS[0]}"
+
+    inc_flags = [f"-Ibuild/{top}" for top in TOPS]
+    inc_flags += ["-Itest", f"-I{vinc}", f"-I{vinc}/vltstd"]
+
+    archives = [f"build/{top}/V{top}__ALL.a" for top in TOPS]
+
+    (ROOT / "build").mkdir(parents=True, exist_ok=True)
+
+    run([
+        "c++", "-std=c++17", "-Os",
+        *inc_flags, "-DVERILATOR=1",
+        "test/tb_top.cpp", "test/ref.cpp", "test/dut.cpp",
+        f"{first}/verilated.o", f"{first}/verilated_threads.o",
+        *archives,
+        "-Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv",
+        "-pthread", "-lpthread",
+        "-o", "build/tb_top",
+    ])
+
+    run([str(ROOT / "build" / "tb_top")])
 
 def main():
     args = set(sys.argv[1:])
