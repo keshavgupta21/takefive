@@ -2,15 +2,16 @@
 #include <iomanip>
 
 bool Decoded::operator==(const Decoded& o) const {
-    return opcode == o.opcode && rd == o.rd && rs1 == o.rs1 &&
-           rs2 == o.rs2 && funct3 == o.funct3 && funct7 == o.funct7 &&
-           imm == o.imm;
+    return valid == o.valid && opcode == o.opcode && rd == o.rd &&
+           rs1 == o.rs1 && rs2 == o.rs2 && funct3 == o.funct3 &&
+           funct7 == o.funct7 && imm == o.imm;
 }
 
 bool Decoded::operator!=(const Decoded& o) const { return !(*this == o); }
 
 std::ostream& operator<<(std::ostream& os, const Decoded& d) {
-    os << "opcode=0x" << std::hex << std::setfill('0') << std::setw(2) << (int)d.opcode
+    os << (d.valid ? "V" : "-")
+       << " opc=0x" << std::hex << std::setfill('0') << std::setw(2) << (int)d.opcode
        << " rd=" << std::dec << (int)d.rd
        << " rs1=" << (int)d.rs1
        << " rs2=" << (int)d.rs2
@@ -24,6 +25,40 @@ static uint32_t sext(uint32_t val, int bits) {
     if ((val >> (bits - 1)) & 1)
         return val | (~0u << bits);
     return val;
+}
+
+static bool is_valid_rv32i(uint8_t opcode, uint8_t funct3, uint8_t funct7) {
+    switch (opcode) {
+        case 0x33: // R-type
+            switch (funct3) {
+                case 0: case 5: return funct7 == 0x00 || funct7 == 0x20;
+                default:        return funct7 == 0x00;
+            }
+        case 0x13: // I-type arithmetic
+            switch (funct3) {
+                case 1:  return funct7 == 0x00;
+                case 5:  return funct7 == 0x00 || funct7 == 0x20;
+                default: return true;
+            }
+        case 0x03: // Loads
+            return funct3 != 3 && funct3 != 6 && funct3 != 7;
+        case 0x23: // Stores
+            return funct3 == 0 || funct3 == 1 || funct3 == 2;
+        case 0x63: // Branches
+            return funct3 != 2 && funct3 != 3;
+        case 0x67: // JALR
+            return funct3 == 0;
+        case 0x37: case 0x17: // LUI, AUIPC
+            return true;
+        case 0x6F: // JAL
+            return true;
+        case 0x0F: // FENCE
+            return funct3 == 0;
+        case 0x73: // ECALL, EBREAK
+            return funct3 == 0;
+        default:
+            return false;
+    }
 }
 
 Decoded decode(uint32_t instr) {
@@ -65,6 +100,8 @@ Decoded decode(uint32_t instr) {
             d.imm = 0;
             break;
     }
+
+    d.valid = is_valid_rv32i(d.opcode, d.funct3, d.funct7);
 
     return d;
 }

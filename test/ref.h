@@ -3,6 +3,7 @@
 #include <iostream>
 
 struct Decoded {
+    bool     valid;
     uint8_t  opcode;
     uint8_t  rd;
     uint8_t  rs1;

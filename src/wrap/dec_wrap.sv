@@ -4,6 +4,7 @@ module dec_wrap (
     input  logic [31:0] f_pc,
     input  logic [31:0] f_inst,
     output logic [31:0] d_pc,
+    output logic        d_inst_valid,
     output logic [6:0]  d_inst_opc,
     output logic [4:0]  d_inst_rd,
     output logic [4:0]  d_inst_rs1,
@@ -22,6 +23,7 @@ module dec_wrap (
         .d_inst (d_inst)
     );
 
+    assign d_inst_valid  = d_inst.valid;
     assign d_inst_opc    = d_inst.opc;
     assign d_inst_rd     = d_inst.rd;
     assign d_inst_rs1    = d_inst.rs1;

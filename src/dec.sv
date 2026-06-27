@@ -2,9 +2,9 @@
 
 module dec
 (
-    input  logic [31:0] f_pc,
-    input  logic [31:0] f_inst,
-    output logic [31:0] d_pc,
+    input  logic [31:0]         f_pc,
+    input  logic [31:0]         f_inst,
+    output logic [31:0]         d_pc,
     output takefive_pkg::inst_t d_inst
 );
 
@@ -40,6 +40,68 @@ module dec
 
             default:
                 d_inst.imm = 32'b0;
+        endcase
+    end
+
+    // Valid bit: set for legitimate RV32I encodings
+    always_comb begin
+        case (f_inst[6:0])
+            // R-type
+            7'b0110011:
+                case (f_inst[14:12])
+                    3'b000, 3'b101: d_inst.valid = (f_inst[31:25] == 7'b0000000)
+                                                 || (f_inst[31:25] == 7'b0100000);
+                    default:        d_inst.valid = (f_inst[31:25] == 7'b0000000);
+                endcase
+
+            // I-type arithmetic
+            7'b0010011:
+                case (f_inst[14:12])
+                    3'b001:  d_inst.valid = (f_inst[31:25] == 7'b0000000);
+                    3'b101:  d_inst.valid = (f_inst[31:25] == 7'b0000000)
+                                          || (f_inst[31:25] == 7'b0100000);
+                    default: d_inst.valid = 1'b1;
+                endcase
+
+            // Loads
+            7'b0000011:
+                d_inst.valid = (f_inst[14:12] != 3'b011)
+                            && (f_inst[14:12] != 3'b110)
+                            && (f_inst[14:12] != 3'b111);
+
+            // Stores
+            7'b0100011:
+                d_inst.valid = (f_inst[14:12] == 3'b000)
+                            || (f_inst[14:12] == 3'b001)
+                            || (f_inst[14:12] == 3'b010);
+
+            // Branches
+            7'b1100011:
+                d_inst.valid = (f_inst[14:12] != 3'b010)
+                            && (f_inst[14:12] != 3'b011);
+
+            // JALR
+            7'b1100111:
+                d_inst.valid = (f_inst[14:12] == 3'b000);
+
+            // LUI, AUIPC
+            7'b0110111, 7'b0010111:
+                d_inst.valid = 1'b1;
+
+            // JAL
+            7'b1101111:
+                d_inst.valid = 1'b1;
+
+            // FENCE
+            7'b0001111:
+                d_inst.valid = (f_inst[14:12] == 3'b000);
+
+            // ECALL, EBREAK
+            7'b1110011:
+                d_inst.valid = (f_inst[14:12] == 3'b000);
+
+            default:
+                d_inst.valid = 1'b0;
         endcase
     end
 

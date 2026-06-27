@@ -17,6 +17,7 @@ Decoded Dut::decode(uint32_t pc, uint32_t instr) {
     model_->eval();
 
     Decoded d;
+    d.valid  = model_->d_inst_valid;
     d.opcode = model_->d_inst_opc;
     d.rd     = model_->d_inst_rd;
     d.rs1    = model_->d_inst_rs1;
