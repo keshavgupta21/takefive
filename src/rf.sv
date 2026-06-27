@@ -2,18 +2,14 @@
 
 module rf
 (
-    input  logic        clk,
+    input  logic                 clk,
 
-    input  logic [4:0]  rs1,
-    input  logic [4:0]  rs2,
-    output logic [31:0] rval1,
-    output logic [31:0] rval2,
+    input  logic [4:0]           rs1,
+    input  logic [4:0]           rs2,
+    output takefive_pkg::rvals_t rvals,
 
-    input  logic [4:0]  rd,
-    input  logic        wen,
-    input  logic [31:0] wdata
+    input  takefive_pkg::rfwb_t  rfwb
 );
-
     logic [31:0] regs [0:31];
 
     initial begin
@@ -23,11 +19,11 @@ module rf
     end
 
     always_ff @(posedge clk) begin
-        if (wen && rd != 5'b0)
-            regs[rd] <= wdata;
+        if (rfwb.wen && rfwb.rd != 5'b0)
+            regs[rfwb.rd] <= rfwb.wdata;
     end
 
-    assign rval1 = regs[rs1];
-    assign rval2 = regs[rs2];
+    assign rvals.rval1 = regs[rs1];
+    assign rvals.rval2 = regs[rs2];
 
 endmodule

@@ -3,7 +3,7 @@
 #include <iostream>
 
 struct Decoded {
-    bool     valid;
+    bool     vld;
     uint8_t  opcode;
     uint8_t  rd;
     uint8_t  rs1;
@@ -19,15 +19,32 @@ struct Decoded {
 std::ostream& operator<<(std::ostream& os, const Decoded& d);
 
 Decoded decode(uint32_t instr);
+uint32_t pack(const Decoded& d);
 
 class RfRef {
 public:
+    RfRef();
     void write(uint8_t rd, bool wen, uint32_t wdata);
     uint32_t read(uint8_t rs) const;
 
 private:
-    uint32_t regs_[32] = {};
+    uint32_t regs_[32];
 };
+
+struct ExeResult {
+    uint8_t  rfwb_rd;
+    bool     rfwb_wen;
+    uint32_t rfwb_wdata;
+
+    bool operator==(const ExeResult& o) const;
+    bool operator!=(const ExeResult& o) const;
+};
+
+std::ostream& operator<<(std::ostream& os, const ExeResult& r);
+
+uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub);
+ExeResult execute(uint32_t pc, const Decoded& inst,
+                  uint32_t rval1, uint32_t rval2);
 
 inline uint32_t enc_r(uint8_t f7, uint8_t rs2, uint8_t rs1, uint8_t f3,
                       uint8_t rd, uint8_t op) {

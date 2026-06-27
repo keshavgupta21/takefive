@@ -18,24 +18,19 @@ module dec
 
     always_comb begin
         case (f_inst[6:0])
-            // I-type: loads, arithmetic-imm, jalr
-            7'b0000011, 7'b0010011, 7'b1100111:
+            takefive_pkg::OPC_LOAD, takefive_pkg::OPC_IMM, takefive_pkg::OPC_JALR:
                 d_inst.imm = {{20{f_inst[31]}}, f_inst[31:20]};
 
-            // S-type: stores
-            7'b0100011:
+            takefive_pkg::OPC_STORE:
                 d_inst.imm = {{20{f_inst[31]}}, f_inst[31:25], f_inst[11:7]};
 
-            // B-type: branches
-            7'b1100011:
+            takefive_pkg::OPC_BRANCH:
                 d_inst.imm = {{19{f_inst[31]}}, f_inst[31], f_inst[7], f_inst[30:25], f_inst[11:8], 1'b0};
 
-            // U-type: lui, auipc
-            7'b0110111, 7'b0010111:
+            takefive_pkg::OPC_LUI, takefive_pkg::OPC_AUIPC:
                 d_inst.imm = {f_inst[31:12], 12'b0};
 
-            // J-type: jal
-            7'b1101111:
+            takefive_pkg::OPC_JAL:
                 d_inst.imm = {{11{f_inst[31]}}, f_inst[31], f_inst[19:12], f_inst[20], f_inst[30:21], 1'b0};
 
             default:
@@ -43,65 +38,59 @@ module dec
         endcase
     end
 
-    // Valid bit: set for legitimate RV32I encodings
     always_comb begin
         case (f_inst[6:0])
-            // R-type
-            7'b0110011:
+            takefive_pkg::OPC_REG:
                 case (f_inst[14:12])
-                    3'b000, 3'b101: d_inst.valid = (f_inst[31:25] == 7'b0000000)
-                                                 || (f_inst[31:25] == 7'b0100000);
-                    default:        d_inst.valid = (f_inst[31:25] == 7'b0000000);
+                    takefive_pkg::F3_ADD, takefive_pkg::F3_SR:
+                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE)
+                                  || (f_inst[31:25] == takefive_pkg::F7_ALT);
+                    default:
+                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE);
                 endcase
 
-            // I-type arithmetic
-            7'b0010011:
+            takefive_pkg::OPC_IMM:
                 case (f_inst[14:12])
-                    3'b001:  d_inst.valid = (f_inst[31:25] == 7'b0000000);
-                    3'b101:  d_inst.valid = (f_inst[31:25] == 7'b0000000)
-                                          || (f_inst[31:25] == 7'b0100000);
-                    default: d_inst.valid = 1'b1;
+                    takefive_pkg::F3_SLL:
+                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE);
+                    takefive_pkg::F3_SR:
+                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE)
+                                  || (f_inst[31:25] == takefive_pkg::F7_ALT);
+                    default:
+                        d_inst.vld = 1'b1;
                 endcase
 
-            // Loads
-            7'b0000011:
-                d_inst.valid = (f_inst[14:12] != 3'b011)
-                            && (f_inst[14:12] != 3'b110)
-                            && (f_inst[14:12] != 3'b111);
+            takefive_pkg::OPC_LOAD:
+                d_inst.vld = (f_inst[14:12] != takefive_pkg::F3_SLTU)
+                          && (f_inst[14:12] != takefive_pkg::F3_OR)
+                          && (f_inst[14:12] != takefive_pkg::F3_AND);
 
-            // Stores
-            7'b0100011:
-                d_inst.valid = (f_inst[14:12] == 3'b000)
-                            || (f_inst[14:12] == 3'b001)
-                            || (f_inst[14:12] == 3'b010);
+            takefive_pkg::OPC_STORE:
+                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_B)
+                          || (f_inst[14:12] == takefive_pkg::F3_H)
+                          || (f_inst[14:12] == takefive_pkg::F3_W);
 
-            // Branches
-            7'b1100011:
-                d_inst.valid = (f_inst[14:12] != 3'b010)
-                            && (f_inst[14:12] != 3'b011);
+            takefive_pkg::OPC_BRANCH:
+                d_inst.vld = (f_inst[14:12] != takefive_pkg::F3_SLT)
+                          && (f_inst[14:12] != takefive_pkg::F3_SLTU);
 
-            // JALR
-            7'b1100111:
-                d_inst.valid = (f_inst[14:12] == 3'b000);
+            takefive_pkg::OPC_JALR:
+                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_ADD);
 
-            // LUI, AUIPC
-            7'b0110111, 7'b0010111:
-                d_inst.valid = 1'b1;
+            takefive_pkg::OPC_LUI, takefive_pkg::OPC_AUIPC:
+                d_inst.vld = 1'b1;
 
-            // JAL
-            7'b1101111:
-                d_inst.valid = 1'b1;
+            takefive_pkg::OPC_JAL:
+                d_inst.vld = 1'b1;
 
-            // FENCE
-            7'b0001111:
-                d_inst.valid = (f_inst[14:12] == 3'b000);
+            takefive_pkg::OPC_FENCE:
+                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_ADD);
 
-            // ECALL, EBREAK
-            7'b1110011:
-                d_inst.valid = (f_inst[14:12] == 3'b000);
+            takefive_pkg::OPC_SYSTEM:
+                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_ADD);
 
             default:
-                d_inst.valid = 1'b0;
+                d_inst.vld = 1'b0;
         endcase
     end
 

@@ -41,7 +41,8 @@ When adding a new RTL module: create the `.sv` file in `src/`, add it to `config
 - Interfaces go in `src/intf/`, test wrappers in `src/wrap/`.
 - Testbenches (reference models, stimulus, checks) must be written solely from the spec (`docs/`), never by reading RTL source.
 - Do not modify RTL to fix bugs. Report the bug with diagnosis and suggest a fix, but leave the RTL change to the user.
-- Align `=` and `<=` operators within a group of assignments.
+- Align `=` and `<=` operators within a group of assignments. Also align port names in module port lists. Apply alignment rules after every RTL change.
 - In module port declarations, separate logically distinct groups of ports with blank lines (e.g., clk/rst, read ports, write ports). Instantiations do not need blank lines.
-- Align opening and closing parentheses of module instantiations (e.g., `.port` indented one level, `);` at the same level as the instance name).
+- In module instantiations, put `(` and `);` on their own lines at the same indent as the instance name. Align the closing `)` of each port connection so they form a vertical column (e.g., `.clk   (clk   ),`).
 - Do not use `import`; refer to package items with `::` (e.g., `takefive_pkg::inst_t`).
+- Never add lint suppression pragmas or comments (e.g., `verilator lint_off`). Fix the underlying issue instead. The only exceptions are in `run.py`: `-Wno-UNUSEDPARAM` (shared package constants are intentionally unused in some per-top compilation units) and `-Wno-UNUSEDSIGNAL` (shared struct types carry fields not used by every module).

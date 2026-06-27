@@ -2,6 +2,8 @@
 #include <cstdint>
 #include "Vdec_wrap.h"
 #include "Vrf_wrap.h"
+#include "Vexe_wrap.h"
+#include "Vdec_rf_exe_wrap.h"
 #include "ref.h"
 
 class DecDut {
@@ -13,6 +15,29 @@ public:
 
 private:
     Vdec_wrap *model_;
+};
+
+class ExeDut {
+public:
+    ExeDut();
+    ~ExeDut();
+    void eval(uint32_t pc, const Decoded& inst,
+              uint32_t rval1, uint32_t rval2);
+    ExeResult result() const;
+
+private:
+    Vexe_wrap *model_;
+};
+
+class DecRfExeDut {
+public:
+    DecRfExeDut();
+    ~DecRfExeDut();
+    void eval(uint32_t pc, uint32_t inst);
+    ExeResult result() const;
+
+private:
+    Vdec_rf_exe_wrap *model_;
 };
 
 class RfDut {

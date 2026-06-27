@@ -1,12 +1,13 @@
 {
-    "top": ["dec_wrap", "rf_wrap"],
+    "top": ["dec_wrap", "rf_wrap", "exe_wrap", "dec_rf_exe_wrap"],
     "sources": [
         "src/takefive_pkg.sv",
-        "src/core.sv",
-        "src/exe.sv",
         "src/dec.sv",
+        "src/exe.sv",
         "src/rf.sv",
         "src/wrap/dec_wrap.sv",
-        "src/wrap/rf_wrap.sv"
+        "src/wrap/rf_wrap.sv",
+        "src/wrap/exe_wrap.sv",
+        "src/wrap/dec_rf_exe_wrap.sv"
     ]
 }

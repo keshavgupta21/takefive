@@ -2,7 +2,7 @@
 #include <iomanip>
 
 bool Decoded::operator==(const Decoded& o) const {
-    return valid == o.valid && opcode == o.opcode && rd == o.rd &&
+    return vld == o.vld && opcode == o.opcode && rd == o.rd &&
            rs1 == o.rs1 && rs2 == o.rs2 && funct3 == o.funct3 &&
            funct7 == o.funct7 && imm == o.imm;
 }
@@ -10,7 +10,7 @@ bool Decoded::operator==(const Decoded& o) const {
 bool Decoded::operator!=(const Decoded& o) const { return !(*this == o); }
 
 std::ostream& operator<<(std::ostream& os, const Decoded& d) {
-    os << (d.valid ? "V" : "-")
+    os << (d.vld ? "V" : "-")
        << " opc=0x" << std::hex << std::setfill('0') << std::setw(2) << (int)d.opcode
        << " rd=" << std::dec << (int)d.rd
        << " rs1=" << (int)d.rs1
@@ -101,12 +101,114 @@ Decoded decode(uint32_t instr) {
             break;
     }
 
-    d.valid = is_valid_rv32i(d.opcode, d.funct3, d.funct7);
+    d.vld = is_valid_rv32i(d.opcode, d.funct3, d.funct7);
 
     return d;
 }
 
+uint32_t pack(const Decoded& d) {
+    switch (d.opcode) {
+        case 0x33: // R-type
+            return enc_r(d.funct7, d.rs2, d.rs1, d.funct3, d.rd, d.opcode);
+        case 0x13: // I-type arithmetic
+            if (d.funct3 == 1 || d.funct3 == 5)
+                return enc_r(d.funct7, d.imm & 0x1F, d.rs1, d.funct3, d.rd, d.opcode);
+            return enc_i(d.imm, d.rs1, d.funct3, d.rd, d.opcode);
+        case 0x03: case 0x67: case 0x0F: case 0x73: // LOAD, JALR, FENCE, SYSTEM
+            return enc_i(d.imm, d.rs1, d.funct3, d.rd, d.opcode);
+        case 0x23: // S-type
+            return enc_s(d.imm, d.rs2, d.rs1, d.funct3, d.opcode);
+        case 0x63: // B-type
+            return enc_b(d.imm, d.rs2, d.rs1, d.funct3, d.opcode);
+        case 0x37: case 0x17: // U-type
+            return enc_u(d.imm, d.rd, d.opcode);
+        case 0x6F: // J-type
+            return enc_j(d.imm, d.rd, d.opcode);
+        default:
+            return enc_r(d.funct7, d.rs2, d.rs1, d.funct3, d.rd, d.opcode);
+    }
+}
+
+// ---- ExeResult ----
+
+bool ExeResult::operator==(const ExeResult& o) const {
+    return rfwb_rd == o.rfwb_rd && rfwb_wen == o.rfwb_wen &&
+           rfwb_wdata == o.rfwb_wdata;
+}
+
+bool ExeResult::operator!=(const ExeResult& o) const { return !(*this == o); }
+
+std::ostream& operator<<(std::ostream& os, const ExeResult& r) {
+    os << "rd=" << (int)r.rfwb_rd
+       << " wen=" << r.rfwb_wen
+       << " wdata=0x" << std::hex << std::setfill('0')
+       << std::setw(8) << r.rfwb_wdata << std::dec;
+    return os;
+}
+
+uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub) {
+    switch (funct3) {
+        case 0: return sub ? op_a - op_b : op_a + op_b;
+        case 1: return op_a << (op_b & 0x1F);
+        case 2: return (int32_t)op_a < (int32_t)op_b ? 1 : 0;
+        case 3: return op_a < op_b ? 1 : 0;
+        case 4: return op_a ^ op_b;
+        case 5: return sub ? (uint32_t)((int32_t)op_a >> (op_b & 0x1F))
+                           : op_a >> (op_b & 0x1F);
+        case 6: return op_a | op_b;
+        case 7: return op_a & op_b;
+        default: return 0;
+    }
+}
+
+ExeResult execute(uint32_t pc, const Decoded& inst,
+                  uint32_t rval1, uint32_t rval2) {
+    ExeResult r;
+    r.rfwb_rd    = inst.rd;
+    r.rfwb_wen   = false;
+    r.rfwb_wdata = 0;
+
+    if (!inst.vld) return r;
+
+    switch (inst.opcode) {
+        case 0x33: // REG
+            r.rfwb_wen   = true;
+            r.rfwb_wdata = alu(rval1, rval2, inst.funct3, (inst.funct7 >> 5) & 1);
+            break;
+        case 0x13: // IMM
+            r.rfwb_wen   = true;
+            r.rfwb_wdata = alu(rval1, inst.imm, inst.funct3, (inst.funct7 >> 5) & 1);
+            break;
+        case 0x37: // LUI
+            r.rfwb_wen   = true;
+            r.rfwb_wdata = inst.imm;
+            break;
+        case 0x17: // AUIPC
+            r.rfwb_wen   = true;
+            r.rfwb_wdata = pc + inst.imm;
+            break;
+        case 0x6F: // JAL
+            r.rfwb_wen   = true;
+            r.rfwb_wdata = pc + 4;
+            break;
+        case 0x67: // JALR
+            r.rfwb_wen   = true;
+            r.rfwb_wdata = pc + 4;
+            break;
+        default:
+            break;
+    }
+
+    return r;
+}
+
 // ---- RfRef ----
+
+RfRef::RfRef() {
+    regs_[0] = 0;
+    for (int i = 1; i < 32; i++)
+        regs_[i] = 0x01010101u * i;
+}
 
 void RfRef::write(uint8_t rd, bool wen, uint32_t wdata) {
     if (wen) regs_[rd] = wdata;

@@ -8,20 +8,28 @@ module rf_wrap (
     output logic [31:0] rval1,
     output logic [31:0] rval2,
 
-    input  logic [4:0]  rd,
-    input  logic        wen,
-    input  logic [31:0] wdata
+    input  logic [4:0]  rfwb_rd,
+    input  logic        rfwb_wen,
+    input  logic [31:0] rfwb_wdata
 );
 
-    rf u_rf (
-        .clk   (clk),
-        .rs1   (rs1),
-        .rs2   (rs2),
-        .rval1 (rval1),
-        .rval2 (rval2),
-        .rd    (rd),
-        .wen   (wen),
-        .wdata (wdata)
+    takefive_pkg::rvals_t rvals;
+
+    takefive_pkg::rfwb_t rfwb;
+    assign rfwb.rd    = rfwb_rd;
+    assign rfwb.wen   = rfwb_wen;
+    assign rfwb.wdata = rfwb_wdata;
+
+    rf u_rf
+    (
+        .clk   (clk  ),
+        .rs1   (rs1  ),
+        .rs2   (rs2  ),
+        .rvals (rvals),
+        .rfwb  (rfwb )
     );
+
+    assign rval1 = rvals.rval1;
+    assign rval2 = rvals.rval2;
 
 endmodule

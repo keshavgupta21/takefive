@@ -52,9 +52,11 @@ def sim(use_netlist):
         mdir = f"build/{top}"
         (ROOT / mdir).mkdir(parents=True, exist_ok=True)
 
+        lint_off = ["-Wno-UNUSEDPARAM", "-Wno-UNUSEDSIGNAL"]
+
         run([
             "verilator", "--cc", "--build",
-            "-Wall",
+            "-Wall", *lint_off,
             "-CFLAGS", "-std=c++17",
             "-Isrc",
             "--Mdir", mdir,

@@ -8,11 +8,12 @@ module core (
     output logic [7:0] result
 );
 
-    exe u_exe (
-        .clk    (clk),
-        .rst    (rst),
-        .a      (a),
-        .b      (b),
+    exe u_exe
+    (
+        .clk    (clk   ),
+        .rst    (rst   ),
+        .a      (a     ),
+        .b      (b     ),
         .result (result)
     );
 

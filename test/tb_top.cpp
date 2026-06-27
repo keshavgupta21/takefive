@@ -332,6 +332,206 @@ static int test_rf_random(RfDut &dut, int n) {
     return errors;
 }
 
+static Decoded make_inst(bool vld, uint8_t opc, uint8_t rd, uint8_t rs1,
+                         uint8_t rs2, uint8_t f3, uint8_t f7, uint32_t imm) {
+    Decoded d;
+    d.vld    = vld;
+    d.opcode = opc;
+    d.rd     = rd;
+    d.rs1    = rs1;
+    d.rs2    = rs2;
+    d.funct3 = f3;
+    d.funct7 = f7;
+    d.imm    = imm;
+    return d;
+}
+
+static int test_exe_directed(ExeDut &dut) {
+    struct Test {
+        const char *name;
+        uint32_t pc;
+        Decoded  inst;
+        uint32_t rval1;
+        uint32_t rval2;
+    };
+
+    static const Test tests[] = {
+        // ---- R-type ALU (opcode 0x33) ----
+        {"ADD",  0x100, make_inst(1, 0x33, 1, 2, 3, 0, 0x00, 0), 0x0000000A, 0x00000014},
+        {"SUB",  0x104, make_inst(1, 0x33, 1, 2, 3, 0, 0x20, 0), 0x00000014, 0x0000000A},
+        {"SLL",  0x108, make_inst(1, 0x33, 1, 2, 3, 1, 0x00, 0), 0x00000001, 0x00000004},
+        {"SLT",  0x10C, make_inst(1, 0x33, 1, 2, 3, 2, 0x00, 0), 0xFFFFFFFF, 0x00000001},
+        {"SLTU", 0x110, make_inst(1, 0x33, 1, 2, 3, 3, 0x00, 0), 0x00000001, 0xFFFFFFFF},
+        {"XOR",  0x114, make_inst(1, 0x33, 1, 2, 3, 4, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F},
+        {"SRL",  0x118, make_inst(1, 0x33, 1, 2, 3, 5, 0x00, 0), 0x80000000, 0x00000004},
+        {"SRA",  0x11C, make_inst(1, 0x33, 1, 2, 3, 5, 0x20, 0), 0x80000000, 0x00000004},
+        {"OR",   0x120, make_inst(1, 0x33, 1, 2, 3, 6, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F},
+        {"AND",  0x124, make_inst(1, 0x33, 1, 2, 3, 7, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F},
+
+        // ---- I-type ALU (opcode 0x13) ----
+        {"ADDI",  0x200, make_inst(1, 0x13, 1, 2, 0, 0, 0x00, 100),        0x0000000A, 0},
+        {"SLTI",  0x204, make_inst(1, 0x13, 1, 2, 0, 2, 0x00, 0xFFFFFFFF), 0x00000000, 0},
+        {"SLTIU", 0x208, make_inst(1, 0x13, 1, 2, 0, 3, 0x00, 0x00000005), 0x00000003, 0},
+        {"XORI",  0x20C, make_inst(1, 0x13, 1, 2, 0, 4, 0x00, 0x0000000F), 0xFF00FF00, 0},
+        {"ORI",   0x210, make_inst(1, 0x13, 1, 2, 0, 6, 0x00, 0x0000000F), 0xFF00FF00, 0},
+        {"ANDI",  0x214, make_inst(1, 0x13, 1, 2, 0, 7, 0x00, 0x0000000F), 0xFF00FF00, 0},
+        {"SLLI",  0x218, make_inst(1, 0x13, 1, 2, 0, 1, 0x00, 4),          0x00000001, 0},
+        {"SRLI",  0x21C, make_inst(1, 0x13, 1, 2, 0, 5, 0x00, 4),          0x80000000, 0},
+        {"SRAI",  0x220, make_inst(1, 0x13, 1, 2, 0, 5, 0x20, 4),          0x80000000, 0},
+
+        // ---- Upper-immediate ----
+        {"LUI",   0x300, make_inst(1, 0x37, 1, 0, 0, 0, 0x00, 0xDEADB000), 0, 0},
+        {"AUIPC", 0x304, make_inst(1, 0x17, 1, 0, 0, 0, 0x00, 0x12345000), 0, 0},
+
+        // ---- Jumps ----
+        {"JAL",   0x400, make_inst(1, 0x6F, 1, 0, 0, 0, 0x00, 1024), 0, 0},
+        {"JALR",  0x404, make_inst(1, 0x67, 1, 2, 0, 0, 0x00, 0),    0x00001000, 0},
+
+        // ---- No-writeback (exe ignores these) ----
+        {"LW",    0x500, make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 8),  0x00001000, 0},
+        {"SW",    0x504, make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 16), 0x00001000, 0xAAAAAAAA},
+        {"BEQ",   0x508, make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 8),  0x00000005, 0x00000005},
+        {"FENCE", 0x50C, make_inst(1, 0x0F, 0, 0, 0, 0, 0x00, 0),  0, 0},
+        {"ECALL", 0x510, make_inst(1, 0x73, 0, 0, 0, 0, 0x00, 0),  0, 0},
+
+        // ---- Invalid ----
+        {"Invalid", 0x600, make_inst(0, 0x33, 1, 2, 3, 0, 0x00, 0), 0x0000000A, 0x00000014},
+    };
+
+    int errors = 0;
+    int n = sizeof(tests) / sizeof(tests[0]);
+
+    for (int i = 0; i < n; i++) {
+        dut.eval(tests[i].pc, tests[i].inst, tests[i].rval1, tests[i].rval2);
+        ExeResult ref = execute(tests[i].pc, tests[i].inst,
+                                tests[i].rval1, tests[i].rval2);
+        ExeResult got = dut.result();
+
+        if (got != ref) {
+            std::cerr << "FAIL exe_directed [" << tests[i].name << "]"
+                      << "  pc=0x" << std::hex << std::setfill('0')
+                      << std::setw(8) << tests[i].pc << std::dec << "\n"
+                      << "  expected: " << ref << "\n"
+                      << "  got:      " << got << "\n";
+            errors++;
+        }
+    }
+
+    if (errors == 0)
+        std::cout << "exe_directed: PASS (" << n << " tests)" << std::endl;
+    else
+        std::cout << "exe_directed: FAIL " << errors << " / " << n << std::endl;
+
+    return errors;
+}
+
+static int test_exe_random(ExeDut &dut, int n) {
+    struct InstType { uint8_t opc; uint8_t f3; uint8_t f7; };
+    static const InstType types[] = {
+        {0x33, 0, 0x00}, {0x33, 0, 0x20}, {0x33, 1, 0x00}, {0x33, 2, 0x00},
+        {0x33, 3, 0x00}, {0x33, 4, 0x00}, {0x33, 5, 0x00}, {0x33, 5, 0x20},
+        {0x33, 6, 0x00}, {0x33, 7, 0x00},
+        {0x13, 0, 0x00}, {0x13, 2, 0x00}, {0x13, 3, 0x00}, {0x13, 4, 0x00},
+        {0x13, 6, 0x00}, {0x13, 7, 0x00}, {0x13, 1, 0x00}, {0x13, 5, 0x00},
+        {0x13, 5, 0x20},
+        {0x37, 0, 0x00}, {0x17, 0, 0x00},
+        {0x6F, 0, 0x00}, {0x67, 0, 0x00},
+    };
+    static const int ntypes = sizeof(types) / sizeof(types[0]);
+
+    std::mt19937 rng(77);
+    std::uniform_int_distribution<uint32_t> val_dist;
+    std::uniform_int_distribution<int>      type_dist(0, ntypes - 1);
+    std::uniform_int_distribution<uint8_t>  reg_dist(0, 31);
+
+    int errors = 0;
+
+    for (int i = 0; i < n; i++) {
+        const InstType &t = types[type_dist(rng)];
+        Decoded inst;
+        inst.vld    = true;
+        inst.opcode = t.opc;
+        inst.rd     = reg_dist(rng);
+        inst.rs1    = reg_dist(rng);
+        inst.rs2    = reg_dist(rng);
+        inst.funct3 = t.f3;
+        inst.funct7 = t.f7;
+        inst.imm    = val_dist(rng);
+
+        uint32_t pc    = val_dist(rng) & ~3u;
+        uint32_t rval1 = val_dist(rng);
+        uint32_t rval2 = val_dist(rng);
+
+        dut.eval(pc, inst, rval1, rval2);
+        ExeResult ref = execute(pc, inst, rval1, rval2);
+        ExeResult got = dut.result();
+
+        if (got != ref) {
+            std::cerr << "FAIL exe_random [" << i << "]"
+                      << "  pc=0x" << std::hex << std::setfill('0')
+                      << std::setw(8) << pc << std::dec
+                      << "  opc=0x" << std::hex << std::setw(2) << (int)t.opc
+                      << " f3=" << std::dec << (int)t.f3
+                      << " f7=0x" << std::hex << std::setw(2) << (int)t.f7
+                      << std::dec << "\n"
+                      << "  expected: " << ref << "\n"
+                      << "  got:      " << got << "\n";
+            errors++;
+        }
+    }
+
+    if (errors == 0)
+        std::cout << "exe_random: PASS (" << n << " tests)" << std::endl;
+    else
+        std::cout << "exe_random: FAIL " << errors << " / " << n << std::endl;
+
+    return errors;
+}
+
+static int test_dec_rf_exe_random(DecRfExeDut &dut, int n) {
+    std::mt19937 rng(123);
+    std::uniform_int_distribution<uint32_t> dist;
+
+    RfRef rf_ref;
+    int errors = 0;
+
+    for (int i = 0; i < n; i++) {
+        uint32_t pc   = dist(rng) & ~3u;
+        uint32_t inst = dist(rng);
+
+        dut.eval(pc, inst);
+        ExeResult got = dut.result();
+
+        Decoded d = decode(inst);
+        uint32_t rval1 = rf_ref.read(d.rs1);
+        uint32_t rval2 = rf_ref.read(d.rs2);
+        ExeResult ref = execute(pc, d, rval1, rval2);
+
+        if (got != ref) {
+            std::cerr << "FAIL dec_rf_exe_random [" << i << "]"
+                      << "  pc=0x" << std::hex << std::setfill('0')
+                      << std::setw(8) << pc
+                      << "  inst=0x" << std::setw(8) << inst
+                      << std::dec << "\n"
+                      << "  decoded:  " << d << "\n"
+                      << "  rval1=0x" << std::hex << std::setfill('0')
+                      << std::setw(8) << rval1
+                      << "  rval2=0x" << std::setw(8) << rval2
+                      << std::dec << "\n"
+                      << "  expected: " << ref << "\n"
+                      << "  got:      " << got << "\n";
+            errors++;
+        }
+    }
+
+    if (errors == 0)
+        std::cout << "dec_rf_exe_random: PASS (" << n << " tests)" << std::endl;
+    else
+        std::cout << "dec_rf_exe_random: FAIL " << errors << " / " << n << std::endl;
+
+    return errors;
+}
+
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
@@ -341,9 +541,16 @@ int main(int argc, char **argv) {
     errors += test_dec_directed(dec_dut);
     errors += test_dec_random(dec_dut, 10000000);
 
+    ExeDut exe_dut;
+    errors += test_exe_directed(exe_dut);
+    errors += test_exe_random(exe_dut, 1000000);
+
     RfDut rf_dut;
     errors += test_rf_directed(rf_dut);
     errors += test_rf_random(rf_dut, 1000000);
+
+    DecRfExeDut dre_dut;
+    errors += test_dec_rf_exe_random(dre_dut, 1000000);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
