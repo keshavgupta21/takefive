@@ -42,3 +42,4 @@ When adding a new RTL module: create the `.sv` file in `src/`, add it to `config
 - Testbenches (reference models, stimulus, checks) must be written solely from the spec (`docs/`), never by reading RTL source.
 - Do not modify RTL to fix bugs. Report the bug with diagnosis and suggest a fix, but leave the RTL change to the user.
 - Align `=` and `<=` operators within a group of assignments.
+- Do not use `import`; refer to package items with `::` (e.g., `takefive_pkg::inst_t`).

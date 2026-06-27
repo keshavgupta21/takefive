@@ -1,4 +1,5 @@
 `include "common.svh"
+
 module exe (
     input  logic       clk,
     input  logic       rst,

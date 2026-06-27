@@ -2,8 +2,6 @@
     "top": ["dec_wrap"],
     "sources": [
         "src/takefive_pkg.sv",
-        "src/intf/f2d_intf.sv",
-        "src/intf/d2r_intf.sv",
         "src/core.sv",
         "src/exe.sv",
         "src/dec.sv",
