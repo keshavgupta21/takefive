@@ -1,3 +1,4 @@
+`include "common.svh"
 module dec_wrap (
     input  logic [31:0] f2d_pc,
     input  logic [31:0] f2d_inst,

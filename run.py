@@ -21,7 +21,7 @@ def syn():
 
     for top in TOPS:
         script = f"""
-            read_verilog -sv {sources};
+            read_verilog -sv -I src {sources};
             synth -top {top};
             flatten;
             write_verilog syn/{top}.v;
@@ -50,6 +50,7 @@ def sim(use_netlist):
         run([
             "verilator", "--cc", "--exe", "--build",
             *lint,
+            "-Isrc",
             "-CFLAGS", "-std=c++17 -I../../test",
             "--Mdir", mdir,
             "--top-module", top,

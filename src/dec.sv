@@ -1,3 +1,4 @@
+`include "common.svh"
 module dec (
     f2d_intf.d f2d,
     d2r_intf.d d2r

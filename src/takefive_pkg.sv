@@ -1,3 +1,4 @@
+`include "common.svh"
 package takefive_pkg;
 
     typedef struct packed {

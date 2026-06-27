@@ -1,3 +1,4 @@
+`include "common.svh"
 module core (
     input  logic       clk,
     input  logic       rst,

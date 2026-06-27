@@ -1,3 +1,4 @@
+`include "common.svh"
 interface d2r_intf;
 
     logic [31:0]          pc;
