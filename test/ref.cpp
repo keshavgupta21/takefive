@@ -146,14 +146,14 @@ std::ostream& operator<<(std::ostream& os, const ExeResult& r) {
     return os;
 }
 
-uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub) {
+uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub, bool ari) {
     switch (funct3) {
         case 0: return sub ? op_a - op_b : op_a + op_b;
         case 1: return op_a << (op_b & 0x1F);
         case 2: return (int32_t)op_a < (int32_t)op_b ? 1 : 0;
         case 3: return op_a < op_b ? 1 : 0;
         case 4: return op_a ^ op_b;
-        case 5: return sub ? (uint32_t)((int32_t)op_a >> (op_b & 0x1F))
+        case 5: return ari ? (uint32_t)((int32_t)op_a >> (op_b & 0x1F))
                            : op_a >> (op_b & 0x1F);
         case 6: return op_a | op_b;
         case 7: return op_a & op_b;
@@ -170,14 +170,17 @@ ExeResult execute(uint32_t pc, const Decoded& inst,
 
     if (!inst.vld) return r;
 
+    bool sub = (inst.funct7 >> 5) & 1;
+    bool ari = (inst.funct7 >> 5) & 1;
+
     switch (inst.opcode) {
         case 0x33: // REG
             r.rfwb_wen   = true;
-            r.rfwb_wdata = alu(rval1, rval2, inst.funct3, (inst.funct7 >> 5) & 1);
+            r.rfwb_wdata = alu(rval1, rval2, inst.funct3, sub, ari);
             break;
         case 0x13: // IMM
             r.rfwb_wen   = true;
-            r.rfwb_wdata = alu(rval1, inst.imm, inst.funct3, (inst.funct7 >> 5) & 1);
+            r.rfwb_wdata = alu(rval1, inst.imm, inst.funct3, false, ari);
             break;
         case 0x37: // LUI
             r.rfwb_wen   = true;
@@ -218,3 +221,19 @@ uint32_t RfRef::read(uint8_t rs) const {
     if (rs == 0) return 0;
     return regs_[rs];
 }
+
+// ---- FetchRef ----
+
+FetchRef::FetchRef(size_t depth) : pc_(0), mem_(depth, 0) {}
+
+void FetchRef::reset() { pc_ = 0; }
+
+void FetchRef::write(uint32_t addr, uint32_t data) {
+    mem_[addr >> 2] = data;
+}
+
+void FetchRef::tick() { pc_ += 4; }
+
+uint32_t FetchRef::pc() const { return pc_; }
+
+uint32_t FetchRef::inst() const { return mem_[pc_ >> 2]; }

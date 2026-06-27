@@ -4,6 +4,7 @@
 #include "Vrf_wrap.h"
 #include "Vexe_wrap.h"
 #include "Vdec_rf_exe_wrap.h"
+#include "Vfetch_wrap.h"
 #include "ref.h"
 
 class DecDut {
@@ -38,6 +39,22 @@ public:
 
 private:
     Vdec_rf_exe_wrap *model_;
+};
+
+class FetchDut {
+public:
+    FetchDut();
+    ~FetchDut();
+    void tick();
+    void eval();
+    void set_rst(bool r);
+    void write(uint32_t addr, uint32_t data);
+    void clear_write();
+    uint32_t f_pc() const;
+    uint32_t f_inst() const;
+
+private:
+    Vfetch_wrap *model_;
 };
 
 class RfDut {

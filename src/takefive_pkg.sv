@@ -23,6 +23,19 @@ package takefive_pkg;
         logic [31:0] wdata;
     } rfwb_t;
 
+    typedef struct packed {
+        logic        vld;
+        logic [31:0] addr;
+        logic        wen;
+        logic [31:0] data;
+    } mem_req_t;
+
+    typedef struct packed {
+        logic        vld;
+        logic [31:0] addr;
+        logic [31:0] data;
+    } mem_rsp_t;
+
     // RV32I opcodes
     localparam logic [6:0] OPC_LOAD   = 7'b0000011;
     localparam logic [6:0] OPC_FENCE  = 7'b0001111;

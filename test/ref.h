@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 struct Decoded {
     bool     vld;
@@ -42,9 +43,23 @@ struct ExeResult {
 
 std::ostream& operator<<(std::ostream& os, const ExeResult& r);
 
-uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub);
+uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub, bool ari);
 ExeResult execute(uint32_t pc, const Decoded& inst,
                   uint32_t rval1, uint32_t rval2);
+
+class FetchRef {
+public:
+    FetchRef(size_t depth = 1024);
+    void reset();
+    void write(uint32_t addr, uint32_t data);
+    void tick();
+    uint32_t pc() const;
+    uint32_t inst() const;
+
+private:
+    uint32_t pc_;
+    std::vector<uint32_t> mem_;
+};
 
 inline uint32_t enc_r(uint8_t f7, uint8_t rs2, uint8_t rs1, uint8_t f3,
                       uint8_t rd, uint8_t op) {

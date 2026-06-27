@@ -14,13 +14,11 @@ module rf
 
     initial begin
         regs[0] = 32'b0;
-        for (int i = 1; i < 32; i++)
-            regs[i] = 32'h01010101 * i;
+        for (int i = 1; i < 32; i++) regs[i] = 32'h01010101 * i;
     end
 
     always_ff @(posedge clk) begin
-        if (rfwb.wen && rfwb.rd != 5'b0)
-            regs[rfwb.rd] <= rfwb.wdata;
+        if (rfwb.wen && rfwb.rd != 5'b0) regs[rfwb.rd] <= rfwb.wdata;
     end
 
     assign rvals.rval1 = regs[rs1];

@@ -532,6 +532,63 @@ static int test_dec_rf_exe_random(DecRfExeDut &dut, int n) {
     return errors;
 }
 
+static int test_fetch_random(FetchDut &dut, int n_rounds) {
+    std::mt19937 rng(55);
+    std::uniform_int_distribution<uint32_t> val_dist;
+    std::uniform_int_distribution<int> len_dist(128, 256);
+
+    FetchRef ref;
+    int errors = 0;
+
+    for (int r = 0; r < n_rounds; r++) {
+        int n = len_dist(rng);
+
+        dut.set_rst(true);
+        dut.eval();
+
+        for (int i = 0; i < n; i++) {
+            uint32_t inst = val_dist(rng);
+            ref.write(i * 4, inst);
+            dut.write(i * 4, inst);
+            dut.tick();
+        }
+
+        dut.clear_write();
+        dut.set_rst(false);
+        dut.eval();
+        ref.reset();
+
+        for (int i = 0; i < n; i++) {
+            uint32_t exp_pc   = ref.pc();
+            uint32_t exp_inst = ref.inst();
+            uint32_t got_pc   = dut.f_pc();
+            uint32_t got_inst = dut.f_inst();
+
+            if (got_pc != exp_pc || got_inst != exp_inst) {
+                std::cerr << "FAIL fetch_random [round=" << r
+                          << " cycle=" << i << "]"
+                          << "  expected pc=0x" << std::hex << std::setfill('0')
+                          << std::setw(8) << exp_pc
+                          << " inst=0x" << std::setw(8) << exp_inst
+                          << "  got pc=0x" << std::setw(8) << got_pc
+                          << " inst=0x" << std::setw(8) << got_inst
+                          << std::dec << "\n";
+                errors++;
+            }
+
+            dut.tick();
+            ref.tick();
+        }
+    }
+
+    if (errors == 0)
+        std::cout << "fetch_random: PASS (" << n_rounds << " rounds)" << std::endl;
+    else
+        std::cout << "fetch_random: FAIL " << errors << std::endl;
+
+    return errors;
+}
+
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
@@ -551,6 +608,9 @@ int main(int argc, char **argv) {
 
     DecRfExeDut dre_dut;
     errors += test_dec_rf_exe_random(dre_dut, 1000000);
+
+    FetchDut fetch_dut;
+    errors += test_fetch_random(fetch_dut, 10000);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }

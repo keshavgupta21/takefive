@@ -108,6 +108,52 @@ ExeResult DecRfExeDut::result() const {
     return r;
 }
 
+// ---- FetchDut ----
+
+FetchDut::FetchDut() : model_(new Vfetch_wrap) {
+    model_->clk     = 0;
+    model_->rst     = 1;
+    model_->wr_addr = 0;
+    model_->wr_data = 0;
+    model_->wr_en   = 0;
+    model_->eval();
+}
+
+FetchDut::~FetchDut() {
+    model_->final();
+    delete model_;
+}
+
+void FetchDut::tick() {
+    model_->clk = 0;
+    model_->eval();
+    model_->clk = 1;
+    model_->eval();
+}
+
+void FetchDut::eval() {
+    model_->eval();
+}
+
+void FetchDut::set_rst(bool r) {
+    model_->rst = r;
+}
+
+void FetchDut::write(uint32_t addr, uint32_t data) {
+    model_->wr_en   = 1;
+    model_->wr_addr = addr;
+    model_->wr_data = data;
+    model_->eval();
+}
+
+void FetchDut::clear_write() {
+    model_->wr_en = 0;
+    model_->eval();
+}
+
+uint32_t FetchDut::f_pc() const { return model_->f_pc; }
+uint32_t FetchDut::f_inst() const { return model_->f_inst; }
+
 // ---- RfDut ----
 
 RfDut::RfDut() : model_(new Vrf_wrap) {
