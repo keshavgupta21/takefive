@@ -1,7 +1,6 @@
 `include "common.svh"
 
-module exe_wrap (
-    input  logic [31:0] pc,
+module mem_wrap (
     input  logic        inst_vld,
     input  logic [6:0]  inst_opc,
     input  logic [4:0]  inst_rd,
@@ -13,13 +12,10 @@ module exe_wrap (
     input  logic [31:0] rval1,
     input  logic [31:0] rval2,
 
-    input  logic        dmem_rsp_vld,
-    input  logic [31:0] dmem_rsp_addr,
-    input  logic [31:0] dmem_rsp_data,
-
-    output logic [4:0]  rfwb_rd,
-    output logic        rfwb_wen,
-    output logic [31:0] rfwb_wdata
+    output logic        mem_req_vld,
+    output logic [31:0] mem_req_addr,
+    output logic        mem_req_wen,
+    output logic [31:0] mem_req_data
 );
 
     takefive_pkg::inst_t inst;
@@ -36,24 +32,18 @@ module exe_wrap (
     assign rvals.rval1 = rval1;
     assign rvals.rval2 = rval2;
 
-    takefive_pkg::mem_rsp_t dmem_rsp;
-    assign dmem_rsp.vld  = dmem_rsp_vld;
-    assign dmem_rsp.addr = dmem_rsp_addr;
-    assign dmem_rsp.data = dmem_rsp_data;
+    takefive_pkg::mem_req_t mem_req;
 
-    takefive_pkg::rfwb_t rfwb;
-
-    exe u_exe(
-        .pc        (pc      ),
-        .inst      (inst    ),
-        .rvals     (rvals   ),
-        .dmem_rsp  (dmem_rsp),
-        .rfwb      (rfwb    ),
-        .dbg_pause (1'b0    )
+    mem u_mem(
+        .inst      (inst   ),
+        .rvals     (rvals  ),
+        .mem_req   (mem_req),
+        .dbg_pause (1'b0   )
     );
 
-    assign rfwb_rd    = rfwb.rd;
-    assign rfwb_wen   = rfwb.wen;
-    assign rfwb_wdata = rfwb.wdata;
+    assign mem_req_vld  = mem_req.vld;
+    assign mem_req_addr = mem_req.addr;
+    assign mem_req_wen  = mem_req.wen;
+    assign mem_req_data = mem_req.data;
 
 endmodule

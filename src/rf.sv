@@ -20,17 +20,9 @@ module rf #(
         for (int i = 1; i < 32; i++) regs[i] = 32'h01010101 * i;
     end
 
-    generate
-        if (DEBUG_EN) begin : g_dbg
-            always_ff @(posedge clk) begin
-                if (rfwb.wen && rfwb.rd != 5'b0 && !dbg_pause) regs[rfwb.rd] <= rfwb.wdata;
-            end
-        end else begin : g_nodbg
-            always_ff @(posedge clk) begin
-                if (rfwb.wen && rfwb.rd != 5'b0) regs[rfwb.rd] <= rfwb.wdata;
-            end
-        end
-    endgenerate
+    always_ff @(posedge clk) begin
+        if (rfwb.wen && rfwb.rd != 5'b0 && (!DEBUG_EN || !dbg_pause)) regs[rfwb.rd] <= rfwb.wdata;
+    end
 
     assign rvals.rval1 = regs[rs1];
     assign rvals.rval2 = regs[rs2];

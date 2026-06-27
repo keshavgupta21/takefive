@@ -327,58 +327,64 @@ static int test_exe_directed(ExeDut &dut) {
         Decoded  inst;
         uint32_t rval1;
         uint32_t rval2;
+        uint32_t dmem_data;
     };
 
     static const Test tests[] = {
         // ---- R-type ALU (opcode 0x33) ----
-        {"ADD",  0x100, make_inst(1, 0x33, 1, 2, 3, 0, 0x00, 0), 0x0000000A, 0x00000014},
-        {"SUB",  0x104, make_inst(1, 0x33, 1, 2, 3, 0, 0x20, 0), 0x00000014, 0x0000000A},
-        {"SLL",  0x108, make_inst(1, 0x33, 1, 2, 3, 1, 0x00, 0), 0x00000001, 0x00000004},
-        {"SLT",  0x10C, make_inst(1, 0x33, 1, 2, 3, 2, 0x00, 0), 0xFFFFFFFF, 0x00000001},
-        {"SLTU", 0x110, make_inst(1, 0x33, 1, 2, 3, 3, 0x00, 0), 0x00000001, 0xFFFFFFFF},
-        {"XOR",  0x114, make_inst(1, 0x33, 1, 2, 3, 4, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F},
-        {"SRL",  0x118, make_inst(1, 0x33, 1, 2, 3, 5, 0x00, 0), 0x80000000, 0x00000004},
-        {"SRA",  0x11C, make_inst(1, 0x33, 1, 2, 3, 5, 0x20, 0), 0x80000000, 0x00000004},
-        {"OR",   0x120, make_inst(1, 0x33, 1, 2, 3, 6, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F},
-        {"AND",  0x124, make_inst(1, 0x33, 1, 2, 3, 7, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F},
+        {"ADD",  0x100, make_inst(1, 0x33, 1, 2, 3, 0, 0x00, 0), 0x0000000A, 0x00000014, 0},
+        {"SUB",  0x104, make_inst(1, 0x33, 1, 2, 3, 0, 0x20, 0), 0x00000014, 0x0000000A, 0},
+        {"SLL",  0x108, make_inst(1, 0x33, 1, 2, 3, 1, 0x00, 0), 0x00000001, 0x00000004, 0},
+        {"SLT",  0x10C, make_inst(1, 0x33, 1, 2, 3, 2, 0x00, 0), 0xFFFFFFFF, 0x00000001, 0},
+        {"SLTU", 0x110, make_inst(1, 0x33, 1, 2, 3, 3, 0x00, 0), 0x00000001, 0xFFFFFFFF, 0},
+        {"XOR",  0x114, make_inst(1, 0x33, 1, 2, 3, 4, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F, 0},
+        {"SRL",  0x118, make_inst(1, 0x33, 1, 2, 3, 5, 0x00, 0), 0x80000000, 0x00000004, 0},
+        {"SRA",  0x11C, make_inst(1, 0x33, 1, 2, 3, 5, 0x20, 0), 0x80000000, 0x00000004, 0},
+        {"OR",   0x120, make_inst(1, 0x33, 1, 2, 3, 6, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F, 0},
+        {"AND",  0x124, make_inst(1, 0x33, 1, 2, 3, 7, 0x00, 0), 0xFF00FF00, 0x0F0F0F0F, 0},
 
         // ---- I-type ALU (opcode 0x13) ----
-        {"ADDI",  0x200, make_inst(1, 0x13, 1, 2, 0, 0, 0x00, 100),        0x0000000A, 0},
-        {"SLTI",  0x204, make_inst(1, 0x13, 1, 2, 0, 2, 0x00, 0xFFFFFFFF), 0x00000000, 0},
-        {"SLTIU", 0x208, make_inst(1, 0x13, 1, 2, 0, 3, 0x00, 0x00000005), 0x00000003, 0},
-        {"XORI",  0x20C, make_inst(1, 0x13, 1, 2, 0, 4, 0x00, 0x0000000F), 0xFF00FF00, 0},
-        {"ORI",   0x210, make_inst(1, 0x13, 1, 2, 0, 6, 0x00, 0x0000000F), 0xFF00FF00, 0},
-        {"ANDI",  0x214, make_inst(1, 0x13, 1, 2, 0, 7, 0x00, 0x0000000F), 0xFF00FF00, 0},
-        {"SLLI",  0x218, make_inst(1, 0x13, 1, 2, 0, 1, 0x00, 4),          0x00000001, 0},
-        {"SRLI",  0x21C, make_inst(1, 0x13, 1, 2, 0, 5, 0x00, 4),          0x80000000, 0},
-        {"SRAI",  0x220, make_inst(1, 0x13, 1, 2, 0, 5, 0x20, 4),          0x80000000, 0},
+        {"ADDI",  0x200, make_inst(1, 0x13, 1, 2, 0, 0, 0x00, 100),        0x0000000A, 0, 0},
+        {"SLTI",  0x204, make_inst(1, 0x13, 1, 2, 0, 2, 0x00, 0xFFFFFFFF), 0x00000000, 0, 0},
+        {"SLTIU", 0x208, make_inst(1, 0x13, 1, 2, 0, 3, 0x00, 0x00000005), 0x00000003, 0, 0},
+        {"XORI",  0x20C, make_inst(1, 0x13, 1, 2, 0, 4, 0x00, 0x0000000F), 0xFF00FF00, 0, 0},
+        {"ORI",   0x210, make_inst(1, 0x13, 1, 2, 0, 6, 0x00, 0x0000000F), 0xFF00FF00, 0, 0},
+        {"ANDI",  0x214, make_inst(1, 0x13, 1, 2, 0, 7, 0x00, 0x0000000F), 0xFF00FF00, 0, 0},
+        {"SLLI",  0x218, make_inst(1, 0x13, 1, 2, 0, 1, 0x00, 4),          0x00000001, 0, 0},
+        {"SRLI",  0x21C, make_inst(1, 0x13, 1, 2, 0, 5, 0x00, 4),          0x80000000, 0, 0},
+        {"SRAI",  0x220, make_inst(1, 0x13, 1, 2, 0, 5, 0x20, 4),          0x80000000, 0, 0},
 
         // ---- Upper-immediate ----
-        {"LUI",   0x300, make_inst(1, 0x37, 1, 0, 0, 0, 0x00, 0xDEADB000), 0, 0},
-        {"AUIPC", 0x304, make_inst(1, 0x17, 1, 0, 0, 0, 0x00, 0x12345000), 0, 0},
+        {"LUI",   0x300, make_inst(1, 0x37, 1, 0, 0, 0, 0x00, 0xDEADB000), 0, 0, 0},
+        {"AUIPC", 0x304, make_inst(1, 0x17, 1, 0, 0, 0, 0x00, 0x12345000), 0, 0, 0},
 
         // ---- Jumps ----
-        {"JAL",   0x400, make_inst(1, 0x6F, 1, 0, 0, 0, 0x00, 1024), 0, 0},
-        {"JALR",  0x404, make_inst(1, 0x67, 1, 2, 0, 0, 0x00, 0),    0x00001000, 0},
+        {"JAL",   0x400, make_inst(1, 0x6F, 1, 0, 0, 0, 0x00, 1024), 0, 0, 0},
+        {"JALR",  0x404, make_inst(1, 0x67, 1, 2, 0, 0, 0x00, 0),    0x00001000, 0, 0},
+
+        // ---- Loads (exe reads dmem_rsp.data) ----
+        {"LW",      0x500, make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 8),  0x00001000, 0, 0xDEADBEEF},
+        {"LW zero", 0x504, make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 0),  0x00000000, 0, 0x00000000},
+        {"LW max",  0x508, make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 4),  0x00000100, 0, 0xFFFFFFFF},
 
         // ---- No-writeback (exe ignores these) ----
-        {"LW",    0x500, make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 8),  0x00001000, 0},
-        {"SW",    0x504, make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 16), 0x00001000, 0xAAAAAAAA},
-        {"BEQ",   0x508, make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 8),  0x00000005, 0x00000005},
-        {"FENCE", 0x50C, make_inst(1, 0x0F, 0, 0, 0, 0, 0x00, 0),  0, 0},
-        {"ECALL", 0x510, make_inst(1, 0x73, 0, 0, 0, 0, 0x00, 0),  0, 0},
+        {"SW",    0x600, make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 16), 0x00001000, 0xAAAAAAAA, 0},
+        {"BEQ",   0x604, make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 8),  0x00000005, 0x00000005, 0},
+        {"FENCE", 0x608, make_inst(1, 0x0F, 0, 0, 0, 0, 0x00, 0),  0, 0, 0},
+        {"ECALL", 0x60C, make_inst(1, 0x73, 0, 0, 0, 0, 0x00, 0),  0, 0, 0},
 
         // ---- Invalid ----
-        {"Invalid", 0x600, make_inst(0, 0x33, 1, 2, 3, 0, 0x00, 0), 0x0000000A, 0x00000014},
+        {"Invalid", 0x700, make_inst(0, 0x33, 1, 2, 3, 0, 0x00, 0), 0x0000000A, 0x00000014, 0},
     };
 
     int errors = 0;
     int n = sizeof(tests) / sizeof(tests[0]);
 
     for (int i = 0; i < n; i++) {
-        dut.eval(tests[i].pc, tests[i].inst, tests[i].rval1, tests[i].rval2);
+        dut.eval(tests[i].pc, tests[i].inst, tests[i].rval1, tests[i].rval2,
+                 tests[i].dmem_data);
         ExeResult ref = execute(tests[i].pc, tests[i].inst,
-                                tests[i].rval1, tests[i].rval2);
+                                tests[i].rval1, tests[i].rval2, tests[i].dmem_data);
         ExeResult got = dut.result();
 
         if (got != ref) {
@@ -403,12 +409,13 @@ static int test_exe_random(ExeDut &dut, int n) {
     for (int i = 0; i < n; i++) {
         Decoded inst = gen_random_inst(rng);
 
-        uint32_t pc    = val_dist(rng) & ~3u;
-        uint32_t rval1 = val_dist(rng);
-        uint32_t rval2 = val_dist(rng);
+        uint32_t pc        = val_dist(rng) & ~3u;
+        uint32_t rval1     = val_dist(rng);
+        uint32_t rval2     = val_dist(rng);
+        uint32_t dmem_data = val_dist(rng);
 
-        dut.eval(pc, inst, rval1, rval2);
-        ExeResult ref = execute(pc, inst, rval1, rval2);
+        dut.eval(pc, inst, rval1, rval2, dmem_data);
+        ExeResult ref = execute(pc, inst, rval1, rval2, dmem_data);
         ExeResult got = dut.result();
 
         if (got != ref) {
@@ -423,6 +430,54 @@ static int test_exe_random(ExeDut &dut, int n) {
     }
 
     return report("exe_random", errors, n);
+}
+
+static int test_mem_directed(MemDut &dut) {
+    struct Test {
+        const char *name;
+        Decoded  inst;
+        uint32_t rval1;
+        uint32_t rval2;
+    };
+
+    static const Test tests[] = {
+        // ---- LW ----
+        {"LW base+0",    make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 0),    0x00001000, 0},
+        {"LW base+imm",  make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 100),  0x00000800, 0},
+        {"LW neg imm",   make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 0xFFFFFFFC), 0x00000100, 0},
+
+        // ---- SW ----
+        {"SW base+0",    make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 0),    0x00002000, 0xDEADBEEF},
+        {"SW base+imm",  make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 200),  0x00000400, 0xCAFEBABE},
+        {"SW neg imm",   make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 0xFFFFFFF0), 0x00000100, 0x12345678},
+
+        // ---- Non-memory opcodes ----
+        {"ADD no req",   make_inst(1, 0x33, 1, 2, 3, 0, 0x00, 0),    0x0000000A, 0x00000014},
+        {"LUI no req",   make_inst(1, 0x37, 1, 0, 0, 0, 0x00, 0xDEADB000), 0, 0},
+        {"BEQ no req",   make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 8),    0x00000005, 0x00000005},
+        {"JAL no req",   make_inst(1, 0x6F, 1, 0, 0, 0, 0x00, 1024), 0, 0},
+
+        // ---- Invalid instruction ----
+        {"Invalid",      make_inst(0, 0x03, 1, 2, 0, 2, 0x00, 0),    0x00001000, 0},
+    };
+
+    int errors = 0;
+    int n = sizeof(tests) / sizeof(tests[0]);
+
+    for (int i = 0; i < n; i++) {
+        dut.eval(tests[i].inst, tests[i].rval1, tests[i].rval2);
+        MemReqResult ref = mem_eval(tests[i].inst, tests[i].rval1, tests[i].rval2);
+        MemReqResult got = dut.result();
+
+        if (got != ref) {
+            std::cerr << "FAIL mem_directed [" << tests[i].name << "]\n"
+                      << "  expected: " << ref << "\n"
+                      << "  got:      " << got << "\n";
+            errors++;
+        }
+    }
+
+    return report("mem_directed", errors, n);
 }
 
 static int test_branch_directed(BranchDut &dut) {
@@ -654,6 +709,8 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
         total.branches_not_taken += s.branches_not_taken;
         total.jumps              += s.jumps;
         total.lui_auipc          += s.lui_auipc;
+        total.loads              += s.loads;
+        total.stores             += s.stores;
         total.rf_writes          += s.rf_writes;
     }
 
@@ -665,6 +722,8 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
               << "  branches_not_taken:  " << total.branches_not_taken << "\n"
               << "  jumps:               " << total.jumps << "\n"
               << "  lui_auipc:           " << total.lui_auipc << "\n"
+              << "  loads:               " << total.loads << "\n"
+              << "  stores:              " << total.stores << "\n"
               << "  rf_writes:           " << total.rf_writes << "\n";
     return rc;
 }
@@ -689,6 +748,9 @@ int main(int argc, char **argv) {
     RfDut rf_dut;
     errors += test_rf_directed(rf_dut);
     errors += test_rf_random(rf_dut, syn ? 100 : 1000000);
+
+    MemDut mem_dut;
+    errors += test_mem_directed(mem_dut);
 
     BranchDut branch_dut;
     errors += test_branch_directed(branch_dut);

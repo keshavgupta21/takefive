@@ -4,6 +4,7 @@
 #include "Vrf_wrap.h"
 #include "Vexe_wrap.h"
 #include "Vbranch_wrap.h"
+#include "Vmem_wrap.h"
 #include "Vfetch_wrap.h"
 #include "Vcore_wrap.h"
 #include "ref.h"
@@ -24,11 +25,22 @@ public:
     ExeDut();
     ~ExeDut();
     void eval(uint32_t pc, const Decoded& inst,
-              uint32_t rval1, uint32_t rval2);
+              uint32_t rval1, uint32_t rval2, uint32_t dmem_data = 0);
     ExeResult result() const;
 
 private:
     Vexe_wrap *model_;
+};
+
+class MemDut {
+public:
+    MemDut();
+    ~MemDut();
+    void eval(const Decoded& inst, uint32_t rval1, uint32_t rval2);
+    MemReqResult result() const;
+
+private:
+    Vmem_wrap *model_;
 };
 
 class BranchDut {

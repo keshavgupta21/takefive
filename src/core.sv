@@ -9,6 +9,9 @@ module core #(
     output takefive_pkg::mem_req_t imem_req,
     input  takefive_pkg::mem_rsp_t imem_rsp,
 
+    output takefive_pkg::mem_req_t dmem_req,
+    input  takefive_pkg::mem_rsp_t dmem_rsp,
+
     input  logic                   dbg_pause,
     input  logic [4:0]             dbg_rs,
     output logic [31:0]            dbg_pc,
@@ -34,26 +37,18 @@ module core #(
         .dbg_pause (dbg_pause)
     );
 
-    dec u_dec(
-        .f_pc   (f_pc  ),
-        .f_inst (f_inst),
-        .d_pc   (d_pc  ),
-        .d_inst (d_inst)
+    dec #(.DEBUG_EN(DEBUG_EN)) u_dec(
+        .f_pc      (f_pc     ),
+        .f_inst    (f_inst   ),
+        .d_pc      (d_pc     ),
+        .d_inst    (d_inst   ),
+        .dbg_pause (dbg_pause)
     );
 
     logic [4:0] rf_rs2;
-
-    generate
-        if (DEBUG_EN) begin : g_dbg
-            assign rf_rs2   = dbg_pause ? dbg_rs : d_inst.rs2;
-            assign dbg_rval = rvals.rval2;
-            assign dbg_pc   = f_pc;
-        end else begin : g_nodbg
-            assign rf_rs2   = d_inst.rs2;
-            assign dbg_rval = 32'b0;
-            assign dbg_pc   = 32'b0;
-        end
-    endgenerate
+    assign rf_rs2   = (DEBUG_EN && dbg_pause) ? dbg_rs : d_inst.rs2;
+    assign dbg_rval = rvals.rval2;
+    assign dbg_pc   = f_pc;
 
     rf #(.DEBUG_EN(DEBUG_EN)) u_rf(
         .clk       (clk       ),
@@ -64,18 +59,28 @@ module core #(
         .dbg_pause (dbg_pause )
     );
 
-    exe u_exe(
-        .pc    (d_pc  ),
-        .inst  (d_inst),
-        .rvals (rvals ),
-        .rfwb  (rfwb  )
+    exe #(.DEBUG_EN(DEBUG_EN)) u_exe(
+        .pc        (d_pc     ),
+        .inst      (d_inst   ),
+        .rvals     (rvals    ),
+        .dmem_rsp  (dmem_rsp ),
+        .rfwb      (rfwb     ),
+        .dbg_pause (dbg_pause)
     );
 
-    branch u_branch(
-        .pc     (d_pc  ),
-        .inst   (d_inst),
-        .rvals  (rvals ),
-        .nxt_pc (nxt_pc)
+    mem #(.DEBUG_EN(DEBUG_EN)) u_mem(
+        .inst      (d_inst   ),
+        .rvals     (rvals    ),
+        .mem_req   (dmem_req ),
+        .dbg_pause (dbg_pause)
+    );
+
+    branch #(.DEBUG_EN(DEBUG_EN)) u_branch(
+        .pc        (d_pc     ),
+        .inst      (d_inst   ),
+        .rvals     (rvals    ),
+        .nxt_pc    (nxt_pc   ),
+        .dbg_pause (dbg_pause)
     );
 
 endmodule

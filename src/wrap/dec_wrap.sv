@@ -17,10 +17,11 @@ module dec_wrap (
     takefive_pkg::inst_t d_inst;
 
     dec u_dec(
-        .f_pc   (f_pc  ),
-        .f_inst (f_inst),
-        .d_pc   (d_pc  ),
-        .d_inst (d_inst)
+        .f_pc      (f_pc ),
+        .f_inst    (f_inst),
+        .d_pc      (d_pc  ),
+        .d_inst    (d_inst),
+        .dbg_pause (1'b0  )
     );
 
     assign d_inst_vld    = d_inst.vld;

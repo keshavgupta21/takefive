@@ -1,11 +1,14 @@
 `include "common.svh"
 
-module dec
-(
+module dec #(
+    parameter DEBUG_EN = 0
+)(
     input  logic [31:0]         f_pc,
     input  logic [31:0]         f_inst,
     output logic [31:0]         d_pc,
-    output takefive_pkg::inst_t d_inst
+    output takefive_pkg::inst_t d_inst,
+
+    input  logic                dbg_pause
 );
 
     assign d_pc          = f_pc;
@@ -17,7 +20,7 @@ module dec
     assign d_inst.funct7 = f_inst[31:25];
 
     always_comb begin
-        case (f_inst[6:0])
+        case (d_inst.opc)
             takefive_pkg::OPC_LOAD, takefive_pkg::OPC_IMM, takefive_pkg::OPC_JALR:
                 d_inst.imm = {{20{f_inst[31]}}, f_inst[31:20]};
 
@@ -39,43 +42,43 @@ module dec
     end
 
     always_comb begin
-        case (f_inst[6:0])
+        case (d_inst.opc)
             takefive_pkg::OPC_REG:
-                case (f_inst[14:12])
+                case (d_inst.funct3)
                     takefive_pkg::F3_ADD, takefive_pkg::F3_SR:
-                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE)
-                                  || (f_inst[31:25] == takefive_pkg::F7_ALT);
+                        d_inst.vld = (d_inst.funct7 == takefive_pkg::F7_BASE)
+                                  || (d_inst.funct7 == takefive_pkg::F7_ALT);
                     default:
-                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE);
+                        d_inst.vld = (d_inst.funct7 == takefive_pkg::F7_BASE);
                 endcase
 
             takefive_pkg::OPC_IMM:
-                case (f_inst[14:12])
+                case (d_inst.funct3)
                     takefive_pkg::F3_SLL:
-                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE);
+                        d_inst.vld = (d_inst.funct7 == takefive_pkg::F7_BASE);
                     takefive_pkg::F3_SR:
-                        d_inst.vld = (f_inst[31:25] == takefive_pkg::F7_BASE)
-                                  || (f_inst[31:25] == takefive_pkg::F7_ALT);
+                        d_inst.vld = (d_inst.funct7 == takefive_pkg::F7_BASE)
+                                  || (d_inst.funct7 == takefive_pkg::F7_ALT);
                     default:
                         d_inst.vld = 1'b1;
                 endcase
 
             takefive_pkg::OPC_LOAD:
-                d_inst.vld = (f_inst[14:12] != takefive_pkg::F3_SLTU)
-                          && (f_inst[14:12] != takefive_pkg::F3_OR)
-                          && (f_inst[14:12] != takefive_pkg::F3_AND);
+                d_inst.vld = (d_inst.funct3 == takefive_pkg::F3_W);
 
             takefive_pkg::OPC_STORE:
-                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_B)
-                          || (f_inst[14:12] == takefive_pkg::F3_H)
-                          || (f_inst[14:12] == takefive_pkg::F3_W);
+                d_inst.vld = (d_inst.funct3 == takefive_pkg::F3_W);
 
             takefive_pkg::OPC_BRANCH:
-                d_inst.vld = (f_inst[14:12] != takefive_pkg::F3_SLT)
-                          && (f_inst[14:12] != takefive_pkg::F3_SLTU);
+                d_inst.vld = (d_inst.funct3 == takefive_pkg::F3_BEQ)
+                          || (d_inst.funct3 == takefive_pkg::F3_BNE)
+                          || (d_inst.funct3 == takefive_pkg::F3_BLT)
+                          || (d_inst.funct3 == takefive_pkg::F3_BGE)
+                          || (d_inst.funct3 == takefive_pkg::F3_BLTU)
+                          || (d_inst.funct3 == takefive_pkg::F3_BGEU);
 
             takefive_pkg::OPC_JALR:
-                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_ADD);
+                d_inst.vld = (d_inst.funct3 == takefive_pkg::F3_ADD);
 
             takefive_pkg::OPC_LUI, takefive_pkg::OPC_AUIPC:
                 d_inst.vld = 1'b1;
@@ -84,14 +87,16 @@ module dec
                 d_inst.vld = 1'b1;
 
             takefive_pkg::OPC_FENCE:
-                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_ADD);
+                d_inst.vld = (d_inst.funct3 == takefive_pkg::F3_ADD);
 
             takefive_pkg::OPC_SYSTEM:
-                d_inst.vld = (f_inst[14:12] == takefive_pkg::F3_ADD);
+                d_inst.vld = (d_inst.funct3 == takefive_pkg::F3_ADD);
 
             default:
                 d_inst.vld = 1'b0;
         endcase
+
+        if (DEBUG_EN && dbg_pause) d_inst.vld = 1'b0;
     end
 
 endmodule

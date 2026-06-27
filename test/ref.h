@@ -53,7 +53,21 @@ std::ostream& operator<<(std::ostream& os, const ExeResult& r);
 
 uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub, bool ari);
 ExeResult execute(uint32_t pc, const Decoded& inst,
-                  uint32_t rval1, uint32_t rval2);
+                  uint32_t rval1, uint32_t rval2, uint32_t dmem_data);
+
+struct MemReqResult {
+    bool     vld;
+    uint32_t addr;
+    bool     wen;
+    uint32_t data;
+
+    bool operator==(const MemReqResult& o) const;
+    bool operator!=(const MemReqResult& o) const;
+};
+
+std::ostream& operator<<(std::ostream& os, const MemReqResult& r);
+
+MemReqResult mem_eval(const Decoded& inst, uint32_t rval1, uint32_t rval2);
 
 struct NxtPcResult {
     bool     vld;
@@ -83,6 +97,17 @@ private:
     std::vector<uint32_t> mem_;
 };
 
+class DmemRef {
+public:
+    DmemRef(size_t depth = 1024);
+    void reset();
+    uint32_t read(uint32_t addr) const;
+    void write(uint32_t addr, uint32_t data);
+
+private:
+    std::vector<uint32_t> mem_;
+};
+
 class CoreRef {
 public:
     struct Stats {
@@ -93,6 +118,8 @@ public:
         uint64_t branches_not_taken;
         uint64_t jumps;
         uint64_t lui_auipc;
+        uint64_t loads;
+        uint64_t stores;
         uint64_t rf_writes;
     };
 
@@ -108,6 +135,7 @@ public:
 private:
     FetchRef fetch_;
     RfRef    rf_;
+    DmemRef  dmem_;
     Stats    stats_;
 };
 

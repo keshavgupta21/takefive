@@ -37,7 +37,58 @@ uint32_t DecDut::pc() const {
 // ---- ExeDut ----
 
 ExeDut::ExeDut() : model_(new Vexe_wrap) {
-    model_->pc          = 0;
+    model_->pc            = 0;
+    model_->inst_vld      = 0;
+    model_->inst_opc      = 0;
+    model_->inst_rd       = 0;
+    model_->inst_rs1      = 0;
+    model_->inst_rs2      = 0;
+    model_->inst_funct3   = 0;
+    model_->inst_funct7   = 0;
+    model_->inst_imm      = 0;
+    model_->rval1         = 0;
+    model_->rval2         = 0;
+    model_->dmem_rsp_vld  = 0;
+    model_->dmem_rsp_addr = 0;
+    model_->dmem_rsp_data = 0;
+    model_->eval();
+}
+
+ExeDut::~ExeDut() {
+    model_->final();
+    delete model_;
+}
+
+void ExeDut::eval(uint32_t pc, const Decoded& inst,
+                  uint32_t rval1, uint32_t rval2, uint32_t dmem_data) {
+    model_->pc            = pc;
+    model_->inst_vld      = inst.vld;
+    model_->inst_opc      = inst.opcode;
+    model_->inst_rd       = inst.rd;
+    model_->inst_rs1      = inst.rs1;
+    model_->inst_rs2      = inst.rs2;
+    model_->inst_funct3   = inst.funct3;
+    model_->inst_funct7   = inst.funct7;
+    model_->inst_imm      = inst.imm;
+    model_->rval1         = rval1;
+    model_->rval2         = rval2;
+    model_->dmem_rsp_vld  = 0;
+    model_->dmem_rsp_addr = 0;
+    model_->dmem_rsp_data = dmem_data;
+    model_->eval();
+}
+
+ExeResult ExeDut::result() const {
+    ExeResult r;
+    r.rfwb_rd    = model_->rfwb_rd;
+    r.rfwb_wen   = model_->rfwb_wen;
+    r.rfwb_wdata = model_->rfwb_wdata;
+    return r;
+}
+
+// ---- MemDut ----
+
+MemDut::MemDut() : model_(new Vmem_wrap) {
     model_->inst_vld    = 0;
     model_->inst_opc    = 0;
     model_->inst_rd     = 0;
@@ -51,14 +102,12 @@ ExeDut::ExeDut() : model_(new Vexe_wrap) {
     model_->eval();
 }
 
-ExeDut::~ExeDut() {
+MemDut::~MemDut() {
     model_->final();
     delete model_;
 }
 
-void ExeDut::eval(uint32_t pc, const Decoded& inst,
-                  uint32_t rval1, uint32_t rval2) {
-    model_->pc          = pc;
+void MemDut::eval(const Decoded& inst, uint32_t rval1, uint32_t rval2) {
     model_->inst_vld    = inst.vld;
     model_->inst_opc    = inst.opcode;
     model_->inst_rd     = inst.rd;
@@ -72,11 +121,12 @@ void ExeDut::eval(uint32_t pc, const Decoded& inst,
     model_->eval();
 }
 
-ExeResult ExeDut::result() const {
-    ExeResult r;
-    r.rfwb_rd    = model_->rfwb_rd;
-    r.rfwb_wen   = model_->rfwb_wen;
-    r.rfwb_wdata = model_->rfwb_wdata;
+MemReqResult MemDut::result() const {
+    MemReqResult r;
+    r.vld  = model_->mem_req_vld;
+    r.addr = model_->mem_req_addr;
+    r.wen  = model_->mem_req_wen;
+    r.data = model_->mem_req_data;
     return r;
 }
 
@@ -219,6 +269,7 @@ void CoreDut::set_rst(bool r) {
 
 void CoreDut::set_pause(bool p) {
     model_->dbg_pause = p;
+    if (!p) model_->wr_en = 0;
     model_->eval();
 }
 

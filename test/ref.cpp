@@ -40,12 +40,13 @@ static bool is_valid_rv32i(uint8_t opcode, uint8_t funct3, uint8_t funct7) {
                 case 5:  return funct7 == 0x00 || funct7 == 0x20;
                 default: return true;
             }
-        case 0x03: // Loads
-            return funct3 != 3 && funct3 != 6 && funct3 != 7;
-        case 0x23: // Stores
-            return funct3 == 0 || funct3 == 1 || funct3 == 2;
+        case 0x03: // Loads (word only)
+            return funct3 == 2;
+        case 0x23: // Stores (word only)
+            return funct3 == 2;
         case 0x63: // Branches
-            return funct3 != 2 && funct3 != 3;
+            return funct3 == 0 || funct3 == 1 || funct3 == 4
+                || funct3 == 5 || funct3 == 6 || funct3 == 7;
         case 0x67: // JALR
             return funct3 == 0;
         case 0x37: case 0x17: // LUI, AUIPC
@@ -131,6 +132,7 @@ const InstType INST_TYPES[] = {
     {0x6F, 0, 0x00}, {0x67, 0, 0x00},
     {0x63, 0, 0x00}, {0x63, 1, 0x00}, {0x63, 4, 0x00},
     {0x63, 5, 0x00}, {0x63, 6, 0x00}, {0x63, 7, 0x00},
+    {0x03, 2, 0x00}, {0x23, 2, 0x00},
 };
 const int N_INST_TYPES = sizeof(INST_TYPES) / sizeof(INST_TYPES[0]);
 
@@ -200,7 +202,7 @@ uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub, bool ari) {
 }
 
 ExeResult execute(uint32_t pc, const Decoded& inst,
-                  uint32_t rval1, uint32_t rval2) {
+                  uint32_t rval1, uint32_t rval2, uint32_t dmem_data) {
     ExeResult r;
     r.rfwb_rd    = inst.rd;
     r.rfwb_wen   = false;
@@ -235,6 +237,52 @@ ExeResult execute(uint32_t pc, const Decoded& inst,
         case 0x67: // JALR
             r.rfwb_wen   = true;
             r.rfwb_wdata = pc + 4;
+            break;
+        case 0x03: // LOAD
+            r.rfwb_wen   = true;
+            r.rfwb_wdata = dmem_data;
+            break;
+        default:
+            break;
+    }
+
+    return r;
+}
+
+// ---- MemReqResult ----
+
+bool MemReqResult::operator==(const MemReqResult& o) const {
+    return vld == o.vld && addr == o.addr && wen == o.wen && data == o.data;
+}
+
+bool MemReqResult::operator!=(const MemReqResult& o) const { return !(*this == o); }
+
+std::ostream& operator<<(std::ostream& os, const MemReqResult& r) {
+    os << "vld=" << r.vld
+       << " addr=0x" << std::hex << std::setfill('0')
+       << std::setw(8) << r.addr
+       << " wen=" << r.wen
+       << " data=0x" << std::setw(8) << r.data << std::dec;
+    return os;
+}
+
+MemReqResult mem_eval(const Decoded& inst, uint32_t rval1, uint32_t rval2) {
+    MemReqResult r;
+    r.vld  = false;
+    r.addr = rval1 + inst.imm;
+    r.wen  = false;
+    r.data = rval2;
+
+    if (!inst.vld) return r;
+
+    switch (inst.opcode) {
+        case 0x03: // LOAD
+            r.vld = true;
+            r.wen = false;
+            break;
+        case 0x23: // STORE
+            r.vld = true;
+            r.wen = true;
             break;
         default:
             break;
@@ -335,9 +383,23 @@ uint32_t FetchRef::pc() const { return pc_; }
 
 uint32_t FetchRef::inst() const { return mem_[(pc_ >> 2) % mem_.size()]; }
 
+// ---- DmemRef ----
+
+DmemRef::DmemRef(size_t depth) : mem_(depth, 0) {}
+
+void DmemRef::reset() { std::fill(mem_.begin(), mem_.end(), 0); }
+
+uint32_t DmemRef::read(uint32_t addr) const {
+    return mem_[(addr >> 2) % mem_.size()];
+}
+
+void DmemRef::write(uint32_t addr, uint32_t data) {
+    mem_[(addr >> 2) % mem_.size()] = data;
+}
+
 // ---- CoreRef ----
 
-CoreRef::CoreRef(size_t depth) : fetch_(depth), stats_{} {}
+CoreRef::CoreRef(size_t depth) : fetch_(depth), dmem_(depth), stats_{} {}
 
 void CoreRef::reset() {
     fetch_.reset();
@@ -352,9 +414,12 @@ void CoreRef::tick() {
     Decoded d = decode(fetch_.inst());
     uint32_t rval1 = rf_.read(d.rs1);
     uint32_t rval2 = rf_.read(d.rs2);
-    ExeResult r = execute(fetch_.pc(), d, rval1, rval2);
+    MemReqResult mreq = mem_eval(d, rval1, rval2);
+    uint32_t dmem_data = dmem_.read(mreq.addr);
+    ExeResult r = execute(fetch_.pc(), d, rval1, rval2, dmem_data);
     NxtPcResult br = branch_eval(fetch_.pc(), d, rval1, rval2);
     rf_.write(r.rfwb_rd, r.rfwb_wen, r.rfwb_wdata);
+    if (mreq.vld && mreq.wen) dmem_.write(mreq.addr, mreq.data);
     fetch_.tick(br.vld, br.nxt_pc);
 
     stats_.cycles++;
@@ -366,6 +431,8 @@ void CoreRef::tick() {
                        else        stats_.branches_not_taken++; break;
             case 0x6F: case 0x67: stats_.jumps++;              break;
             case 0x37: case 0x17: stats_.lui_auipc++;          break;
+            case 0x03:            stats_.loads++;               break;
+            case 0x23:            stats_.stores++;              break;
             default: break;
         }
     }
@@ -387,5 +454,7 @@ void CoreRef::print_stats() const {
               << "  branches_not_taken:  " << s.branches_not_taken << "\n"
               << "  jumps:               " << s.jumps << "\n"
               << "  lui_auipc:           " << s.lui_auipc << "\n"
+              << "  loads:               " << s.loads << "\n"
+              << "  stores:              " << s.stores << "\n"
               << "  rf_writes:           " << s.rf_writes << "\n";
 }
