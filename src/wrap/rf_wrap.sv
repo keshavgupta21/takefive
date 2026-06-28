@@ -20,12 +20,20 @@ module rf_wrap (
     assign rfwb.wen   = rfwb_wen;
     assign rfwb.wdata = rfwb_wdata;
 
+    logic [31:0] dbg_rval_nc;
+
     rf u_rf(
-        .clk   (clk  ),
-        .rs1   (rs1  ),
-        .rs2   (rs2  ),
-        .rvals (rvals),
-        .rfwb  (rfwb )
+        .clk          (clk        ),
+        .rs1          (rs1        ),
+        .rs2          (rs2        ),
+        .rvals        (rvals      ),
+        .rfwb         (rfwb       ),
+        .dbg_pause    (1'b0       ),
+        .dbg_rs       (5'b0       ),
+        .dbg_rval     (dbg_rval_nc),
+        .dbg_rf_wr    (1'b0       ),
+        .dbg_rf_rd    (5'b0       ),
+        .dbg_rf_data  (32'b0      )
     );
 
     assign rval1 = rvals.rval1;

@@ -44,34 +44,24 @@ module core #(
         .d2r (d2r)
     );
 
-    // ---------------- Debug ----------------
-    logic [4:0] rf_rs1, rf_rs2;
-    takefive_pkg::rfwb_t rfwb, rfwb_mux;
-    always_comb begin
-        if (DEBUG_EN && dbg_pause) begin
-            rf_rs2         = dbg_rs;
-            rfwb_mux.rd    = dbg_rf_rd;
-            rfwb_mux.wen   = dbg_rf_wr;
-            rfwb_mux.wdata = dbg_rf_data;
-        end else begin
-            rf_rs2   = d2r.inst.rs2;
-            rfwb_mux = rfwb;
-        end
-        rf_rs1 = d2r.inst.rs1;
-    end
-
-    takefive_pkg::rvals_t rvals;
-    assign dbg_rval = rvals.rval2;
-    assign dbg_pc   = f2d.pc;
-
     // ---------------- RegFile ----------------
-    rf u_rf(
-        .clk   (clk         ),
-        .rs1   (rf_rs1      ),
-        .rs2   (rf_rs2      ),
-        .rvals (rvals        ),
-        .rfwb  (rfwb_mux     )
+    takefive_pkg::rvals_t rvals;
+    takefive_pkg::rfwb_t  rfwb;
+
+    rf #(.DEBUG_EN(DEBUG_EN)) u_rf(
+        .clk          (clk          ),
+        .rs1          (d2r.inst.rs1 ),
+        .rs2          (d2r.inst.rs2 ),
+        .rvals        (rvals        ),
+        .rfwb         (rfwb         ),
+        .dbg_pause    (dbg_pause    ),
+        .dbg_rs       (dbg_rs       ),
+        .dbg_rval     (dbg_rval     ),
+        .dbg_rf_wr    (dbg_rf_wr    ),
+        .dbg_rf_rd    (dbg_rf_rd    ),
+        .dbg_rf_data  (dbg_rf_data  )
     );
+    assign dbg_pc = f2d.pc;
 
     takefive_pkg::r2e_t r2e;
     assign r2e.pc    = d2r.pc;
