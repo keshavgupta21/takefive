@@ -45,7 +45,7 @@ module core #(
     );
 
     // ---------------- Debug ----------------
-    logic [4:0] rf_rs2;
+    logic [4:0] rf_rs1, rf_rs2;
     takefive_pkg::rfwb_t rfwb, rfwb_mux;
     always_comb begin
         if (DEBUG_EN && dbg_pause) begin
@@ -57,6 +57,7 @@ module core #(
             rf_rs2   = d2r.inst.rs2;
             rfwb_mux = rfwb;
         end
+        rf_rs1 = d2r.inst.rs1;
     end
 
     takefive_pkg::rvals_t rvals;
@@ -66,18 +67,18 @@ module core #(
     // ---------------- RegFile ----------------
     rf u_rf(
         .clk   (clk         ),
-        .rs1   (d2r.inst.rs1),
+        .rs1   (rf_rs1      ),
         .rs2   (rf_rs2      ),
         .rvals (rvals        ),
         .rfwb  (rfwb_mux     )
     );
 
-    // ---------------- Exec ----------------
     takefive_pkg::r2e_t r2e;
     assign r2e.pc    = d2r.pc;
     assign r2e.inst  = d2r.inst;
     assign r2e.rvals = rvals;
 
+    // ---------------- Exec ----------------
     mem u_mem(
         .r2e     (r2e     ),
         .mem_req (dmem_req)
