@@ -115,9 +115,9 @@ void ExeDut::eval(uint32_t pc, const Decoded& inst,
 
 ExeResult ExeDut::result() const {
     ExeResult r;
-    r.rfwb_rd    = model_->rfwb_rd;
-    r.rfwb_wen   = model_->rfwb_wen;
-    r.rfwb_wdata = model_->rfwb_wdata;
+    r.rfwb_rd    = model_->rf_wr_req_rd;
+    r.rfwb_wen   = model_->rf_wr_req_wen;
+    r.rfwb_wdata = model_->rf_wr_req_wdata;
     return r;
 }
 
@@ -285,16 +285,19 @@ uint32_t FetchDut::f_inst() const { return model_->f_inst; }
 // ---- CoreDut ----
 
 CoreDut::CoreDut() : model_(new Vcore_wrap) {
-    model_->clk        = 0;
-    model_->rst        = 1;
-    model_->wr_addr    = 0;
-    model_->wr_data    = 0;
-    model_->wr_en      = 0;
-    model_->dbg_pause  = 0;
-    model_->dbg_rs     = 0;
-    model_->rf_wr_en   = 0;
-    model_->rf_wr_rd   = 0;
-    model_->rf_wr_data = 0;
+    model_->clk            = 0;
+    model_->rst            = 1;
+    model_->imem_wr_addr   = 0;
+    model_->imem_wr_data   = 0;
+    model_->imem_wr_en     = 0;
+    model_->dmem_wr_addr   = 0;
+    model_->dmem_wr_data   = 0;
+    model_->dmem_wr_en     = 0;
+    model_->dbg_pause      = 0;
+    model_->dbg_rf_rd_rs   = 0;
+    model_->dbg_rf_wr_en   = 0;
+    model_->dbg_rf_wr_rd   = 0;
+    model_->dbg_rf_wr_data = 0;
     model_->eval();
 #ifdef WAVES
     if (g_trace) {
@@ -333,30 +336,38 @@ void CoreDut::set_rst(bool r) {
 void CoreDut::set_pause(bool p) {
     model_->dbg_pause = p;
     if (!p) {
-        model_->wr_en    = 0;
-        model_->rf_wr_en = 0;
+        model_->imem_wr_en   = 0;
+        model_->dmem_wr_en   = 0;
+        model_->dbg_rf_wr_en = 0;
     }
     model_->eval();
 }
 
 void CoreDut::write(uint32_t addr, uint32_t data) {
-    model_->wr_en   = 1;
-    model_->wr_addr = addr;
-    model_->wr_data = data;
+    model_->imem_wr_en   = 1;
+    model_->imem_wr_addr = addr;
+    model_->imem_wr_data = data;
+    model_->eval();
+}
+
+void CoreDut::write_dmem(uint32_t addr, uint32_t data) {
+    model_->dmem_wr_en   = 1;
+    model_->dmem_wr_addr = addr;
+    model_->dmem_wr_data = data;
     model_->eval();
 }
 
 void CoreDut::write_reg(uint8_t rd, uint32_t data) {
-    model_->rf_wr_en   = 1;
-    model_->rf_wr_rd   = rd;
-    model_->rf_wr_data = data;
+    model_->dbg_rf_wr_en   = 1;
+    model_->dbg_rf_wr_rd   = rd;
+    model_->dbg_rf_wr_data = data;
     model_->eval();
 }
 
 uint32_t CoreDut::read_reg(uint8_t rs) {
-    model_->dbg_rs = rs;
+    model_->dbg_rf_rd_rs = rs;
     model_->eval();
-    return model_->dbg_rval;
+    return model_->dbg_rf_rd_val;
 }
 
 uint32_t CoreDut::pc() {
@@ -367,53 +378,6 @@ bool CoreDut::commit() {
     return model_->dbg_commit;
 }
 
-// ---- RfDut ----
-
-RfDut::RfDut() : model_(new Vrf_wrap) {
-    model_->clk        = 0;
-    model_->rs1        = 0;
-    model_->rs2        = 0;
-    model_->rfwb_rd    = 0;
-    model_->rfwb_wen   = 0;
-    model_->rfwb_wdata = 0;
-    model_->eval();
-#ifdef WAVES
-    if (g_trace) {
-        model_->trace(g_trace, 99);
-        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
-    }
-#endif
+bool CoreDut::pipe_busy() {
+    return model_->dbg_pipe_busy;
 }
-
-RfDut::~RfDut() {
-    model_->final();
-    delete model_;
-}
-
-void RfDut::tick() {
-    model_->clk = 0;
-    model_->eval();
-#ifdef WAVES
-    if (g_trace) g_trace->dump(g_time++);
-#endif
-    model_->clk = 1;
-    model_->eval();
-#ifdef WAVES
-    if (g_trace) g_trace->dump(g_time++);
-#endif
-}
-
-void RfDut::set_read(uint8_t rs1, uint8_t rs2) {
-    model_->rs1 = rs1;
-    model_->rs2 = rs2;
-    model_->eval();
-}
-
-void RfDut::set_write(uint8_t rd, bool wen, uint32_t wdata) {
-    model_->rfwb_rd    = rd;
-    model_->rfwb_wen   = wen;
-    model_->rfwb_wdata = wdata;
-}
-
-uint32_t RfDut::rval1() const { return model_->rval1; }
-uint32_t RfDut::rval2() const { return model_->rval2; }

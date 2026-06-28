@@ -14,9 +14,9 @@ module exe_wrap (
     input  logic [31:0] rval2,
     input  logic [31:0] mem_data,
 
-    output logic [4:0]  rfwb_rd,
-    output logic        rfwb_wen,
-    output logic [31:0] rfwb_wdata
+    output logic [4:0]  rf_wr_req_rd,
+    output logic        rf_wr_req_wen,
+    output logic [31:0] rf_wr_req_wdata
 );
 
     takefive_pkg::r2e_t r2e;
@@ -52,19 +52,19 @@ module exe_wrap (
     assign dmem_rsp.addr = 32'b0;
     assign dmem_rsp.data = mem_data;
 
-    takefive_pkg::rfwb_t rfwb;
+    takefive_pkg::rf_wr_req_t rf_wr_req;
 
     logic wb_stall;
 
     wb u_wb(
-        .e2w      (e2w      ),
-        .dmem_rsp (dmem_rsp ),
-        .rfwb     (rfwb     ),
-        .stall    (wb_stall )
+        .e2w        (e2w        ),
+        .dmem_rsp   (dmem_rsp   ),
+        .rf_wr_req  (rf_wr_req  ),
+        .stall      (wb_stall   )
     );
 
-    assign rfwb_rd    = rfwb.rd;
-    assign rfwb_wen   = rfwb.wen;
-    assign rfwb_wdata = rfwb.wdata;
+    assign rf_wr_req_rd    = rf_wr_req.rd;
+    assign rf_wr_req_wen   = rf_wr_req.wen;
+    assign rf_wr_req_wdata = rf_wr_req.wdata;
 
 endmodule

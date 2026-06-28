@@ -7,7 +7,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SYN_DIR = ROOT / "syn"
 CONFIG = json.loads((ROOT / "config.json").read_text())
-TOPS = CONFIG["top"]
 
 def run(cmd):
     print(f"==> {cmd[0]}...")
@@ -23,8 +22,29 @@ def verilator_root():
 def syn():
     SYN_DIR.mkdir(exist_ok=True)
     sources = " ".join(CONFIG["sources"])
+    top = "core_top"
 
-    for top in TOPS:
+    script = f"""
+        read_verilog -sv -I src {sources};
+        synth -top {top};
+        flatten;
+        write_verilog syn/{top}.v;
+    """
+
+    print(f"==> Synthesizing {top} with Yosys...")
+    result = subprocess.run(
+        ["yosys", "-p", script, "-l", str(SYN_DIR / f"{top}.log")],
+        cwd=ROOT,
+    )
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    print(f"==> Done. Netlist written to syn/{top}.v")
+
+def syn_modules():
+    SYN_DIR.mkdir(exist_ok=True)
+    sources = " ".join(CONFIG["sources"])
+
+    for top in CONFIG["syn_top"]:
         script = f"""
             read_verilog -sv -I src {sources};
             synth -top {top};
@@ -41,11 +61,15 @@ def syn():
             sys.exit(result.returncode)
         print(f"==> Done. Netlist written to syn/{top}.v")
 
-def sim(use_netlist, use_waves):
-    # Phase 1: verilate all top modules (model libraries only)
-    for top in TOPS:
+def sim(use_netlist=False, use_waves=False):
+    sim_tops = CONFIG["sim_top"]
+
+    for top in sim_tops:
         if use_netlist:
-            sources = [f"syn/{top}.v"]
+            netlists = [f"syn/{t}.v" for t in CONFIG["syn_top"]]
+            nosyn = [s for s in CONFIG["sources"]
+                     if not s.startswith("src/rtl/") and not s.startswith("src/syn/")]
+            sources = nosyn + netlists
         else:
             sources = CONFIG["sources"]
 
@@ -66,14 +90,13 @@ def sim(use_netlist, use_waves):
             *sources,
         ])
 
-    # Phase 2: compile testbench once, link against all models
     vinc = f"{verilator_root()}/include"
-    first = f"build/{TOPS[0]}"
+    first = f"build/{sim_tops[0]}"
 
-    inc_flags = [f"-Ibuild/{top}" for top in TOPS]
+    inc_flags = [f"-Ibuild/{top}" for top in sim_tops]
     inc_flags += ["-Itest", f"-I{vinc}", f"-I{vinc}/vltstd"]
 
-    archives = [f"build/{top}/V{top}__ALL.a" for top in TOPS]
+    archives = [f"build/{top}/V{top}__ALL.a" for top in sim_tops]
     waves_flags = ["-DWAVES"] if use_waves else []
     trace_objs = [f"{first}/verilated_vcd_c.o"] if use_waves else []
 
@@ -107,21 +130,18 @@ def clean():
 
 def main():
     args = set(sys.argv[1:])
-    do_syn   = "++syn" in args
-    do_sim   = "++sim" in args
-    do_clean = "++clean" in args
-    do_waves = "++waves" in args
+    do_sim       = "++sim" in args
+    do_sim_waves = "++sim_waves" in args
+    do_sim_syn   = "++sim_syn" in args
+    do_syn       = "++syn" in args
+    do_clean     = "++clean" in args
 
-    if do_waves and do_syn:
-        print("Error: ++waves and ++syn cannot be used together")
-        sys.exit(1)
-
-    if not do_syn and not do_sim and not do_clean:
-        print("Usage: ./run.py ++sim [++syn] [++waves]")
+    if not (do_sim or do_sim_waves or do_sim_syn or do_syn or do_clean):
+        print("Usage: ./run.py <mode>")
         print("  ++sim            Simulate with Verilator")
-        print("  ++syn            Synthesize with Yosys")
-        print("  ++sim ++syn      Synthesize, then simulate the netlist")
-        print("  ++sim ++waves    Simulate with VCD waveform output")
+        print("  ++sim_waves      Simulate with VCD waveform output")
+        print("  ++sim_syn        Synthesize modules, then simulate netlists")
+        print("  ++syn            Synthesize core_top with Yosys")
         print("  ++clean          Remove build/ and syn/")
         sys.exit(1)
 
@@ -132,7 +152,14 @@ def main():
         syn()
 
     if do_sim:
-        sim(use_netlist=do_syn, use_waves=do_waves)
+        sim()
+
+    if do_sim_waves:
+        sim(use_waves=True)
+
+    if do_sim_syn:
+        syn_modules()
+        sim(use_netlist=True)
 
 if __name__ == "__main__":
     main()

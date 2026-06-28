@@ -2,7 +2,6 @@
 #include <cstdint>
 #include "verilated.h"
 #include "Vdec_wrap.h"
-#include "Vrf_wrap.h"
 #include "Vexe_wrap.h"
 #include "Vbranch_wrap.h"
 #include "Vmem_wrap.h"
@@ -93,25 +92,13 @@ public:
     void set_rst(bool r);
     void set_pause(bool p);
     void write(uint32_t addr, uint32_t data);
+    void write_dmem(uint32_t addr, uint32_t data);
     void write_reg(uint8_t rd, uint32_t data);
     uint32_t read_reg(uint8_t rs);
     uint32_t pc();
     bool commit();
+    bool pipe_busy();
 
 private:
     Vcore_wrap *model_;
-};
-
-class RfDut {
-public:
-    RfDut();
-    ~RfDut();
-    void tick();
-    void set_read(uint8_t rs1, uint8_t rs2);
-    void set_write(uint8_t rd, bool wen, uint32_t wdata);
-    uint32_t rval1() const;
-    uint32_t rval2() const;
-
-private:
-    Vrf_wrap *model_;
 };

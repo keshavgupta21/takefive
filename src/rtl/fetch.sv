@@ -1,8 +1,6 @@
 `include "common.svh"
 
-module fetch #(
-    parameter DEBUG_EN = 0
-)(
+module fetch (
     input  logic                   clk,
     input  logic                   rst,
 
@@ -28,10 +26,10 @@ module fetch #(
 
     always_ff @(posedge clk) begin
         if (rst)                          pc <= '0;
-        else if (!DEBUG_EN || !dbg_pause) pc <= nxt_pc;
+        else if (!dbg_pause) pc <= nxt_pc;
     end
 
-    assign mem_req.vld  = mem_rdy && (!DEBUG_EN || !dbg_pause);
+    assign mem_req.vld  = mem_rdy && (!dbg_pause);
     assign mem_req.addr = nxt_pc;
     assign mem_req.wen  = 1'b0;
     assign mem_req.data = 32'b0;

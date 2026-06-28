@@ -1,27 +1,25 @@
 `include "common.svh"
 
-module core #(
-    parameter DEBUG_EN = 0
-)(
-    input  logic                   clk,
-    input  logic                   rst,
+module core (
+    input  logic                       clk,
+    input  logic                       rst,
 
-    output takefive_pkg::mem_req_t imem_req,
-    input  takefive_pkg::mem_rsp_t imem_rsp,
-    input  logic                   imem_rdy,
+    output takefive_pkg::mem_req_t     imem_req,
+    input  takefive_pkg::mem_rsp_t     imem_rsp,
+    input  logic                       imem_rdy,
 
-    output takefive_pkg::mem_req_t dmem_req,
-    input  takefive_pkg::mem_rsp_t dmem_rsp,
-    input  logic                   dmem_rdy,
+    output takefive_pkg::mem_req_t     dmem_req,
+    input  takefive_pkg::mem_rsp_t     dmem_rsp,
+    input  logic                       dmem_rdy,
 
-    input  logic                   dbg_pause,
-    input  logic [4:0]             dbg_rs,
-    output logic [31:0]            dbg_pc,
-    output logic [31:0]            dbg_rval,
-    output logic                   dbg_commit,
-    input  logic                   dbg_rf_wr,
-    input  logic [4:0]             dbg_rf_rd,
-    input  logic [31:0]            dbg_rf_data
+    output takefive_pkg::rf_rd_req_t   rf_rd_req,
+    input  takefive_pkg::rf_rd_rsp_t   rf_rd_rsp,
+    output takefive_pkg::rf_wr_req_t   rf_wr_req,
+
+    input  logic                       dbg_pause,
+    output logic [31:0]                dbg_pc,
+    output logic                       dbg_commit,
+    output logic                       dbg_pipe_busy
 );
 
     //         --- PIPELINE STAGE 1 ---
@@ -33,7 +31,7 @@ module core #(
     logic dec_stall, rf_stall, dmem_stall, wb_stall, stall;
     assign stall = dec_stall || rf_stall || dmem_stall || wb_stall;
 
-    fetch #(.DEBUG_EN(DEBUG_EN)) u_fetch(
+    fetch u_fetch(
         .clk       (clk      ),
         .rst       (rst      ),
         .mem_req   (imem_req ),
@@ -56,33 +54,19 @@ module core #(
 
     assign dec_stall = !f2d.vld;
 
-    // ---------------- RegFile ----------------
-    takefive_pkg::rvals_t rvals;
-    takefive_pkg::rfwb_t  rfwb;
+    // ---------------- RegFile (external) ----------------
+    assign rf_rd_req.rs1 = d2r.inst.rs1;
+    assign rf_rd_req.rs2 = d2r.inst.rs2;
 
-    rf #(.DEBUG_EN(DEBUG_EN)) u_rf(
-        .clk         (clk         ),
-        .rs1         (d2r.inst.rs1),
-        .rs2         (d2r.inst.rs2),
-        .rvals       (rvals       ),
-        .rfwb        (rfwb        ),
-        .dbg_pause   (dbg_pause   ),
-        .dbg_rs      (dbg_rs      ),
-        .dbg_rval    (dbg_rval    ),
-        .dbg_rf_wr   (dbg_rf_wr   ),
-        .dbg_rf_rd   (dbg_rf_rd   ),
-        .dbg_rf_data (dbg_rf_data )
-    );
-
-    takefive_pkg::rvals_t byp_rvals;
+    takefive_pkg::rf_rd_rsp_t byp_rvals;
 
     bypass u_bypass(
-        .inst      (d2r.inst ),
-        .rd_rvals  (rvals    ),
-        .r2e       (r2e      ),
-        .rfwb      (rfwb     ),
-        .byp_rvals (byp_rvals),
-        .stall     (rf_stall )
+        .inst       (d2r.inst   ),
+        .rd_rvals   (rf_rd_rsp  ),
+        .r2e        (r2e        ),
+        .rf_wr_req  (rf_wr_req  ),
+        .byp_rvals  (byp_rvals  ),
+        .stall      (rf_stall   )
     );
 
     takefive_pkg::r2e_t r2e;
@@ -156,10 +140,10 @@ module core #(
     //         --- PIPELINE STAGE 4 ---
     // ---------------- Writeback ----------------
     wb u_wb(
-        .e2w      (e2w      ),
-        .dmem_rsp (dmem_rsp ),
-        .rfwb     (rfwb     ),
-        .stall    (wb_stall )
+        .e2w        (e2w        ),
+        .dmem_rsp   (dmem_rsp   ),
+        .rf_wr_req  (rf_wr_req  ),
+        .stall      (wb_stall   )
     );
 
     always_ff @(posedge clk) begin
@@ -170,6 +154,11 @@ module core #(
             dbg_pc     <= e2w.pc;
             dbg_commit <= e2w.vld;
         end
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) dbg_pipe_busy <= 0;
+        else     dbg_pipe_busy <= f2d.vld | r2e.vld | e2w.vld;
     end
 
 endmodule

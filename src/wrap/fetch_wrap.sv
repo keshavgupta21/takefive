@@ -21,7 +21,6 @@ module fetch_wrap #(
     input  logic        dbg_pause
 );
 
-    takefive_pkg::mem_req_t fetch_req;
     takefive_pkg::mem_req_t mem_req;
     takefive_pkg::mem_rsp_t mem_rsp;
 
@@ -34,10 +33,10 @@ module fetch_wrap #(
 
     logic mem_rdy;
 
-    fetch #(.DEBUG_EN(1)) u_fetch(
+    fetch u_fetch(
         .clk       (clk       ),
         .rst       (rst       ),
-        .mem_req   (fetch_req ),
+        .mem_req   (mem_req   ),
         .mem_rsp   (mem_rsp   ),
         .mem_rdy   (mem_rdy   ),
         .f2d       (f2d       ),
@@ -50,24 +49,20 @@ module fetch_wrap #(
     assign f_pc   = f2d.pc;
     assign f_inst = f2d.inst;
 
-    always_comb begin
-        if (dbg_pause) begin
-            mem_req.vld  = wr_en;
-            mem_req.addr = wr_addr;
-            mem_req.wen  = wr_en;
-            mem_req.data = wr_data;
-        end else begin
-            mem_req = fetch_req;
-        end
-    end
+    takefive_pkg::mem_req_t dbg_req;
+    assign dbg_req.vld  = wr_en;
+    assign dbg_req.addr = wr_addr;
+    assign dbg_req.wen  = wr_en;
+    assign dbg_req.data = wr_data;
 
     delay_mem #(.DEPTH(DEPTH)) u_mem(
-        .clk     (clk      ),
-        .rst     (rst      ),
-        .dbg     (dbg_pause),
-        .req     (mem_req  ),
-        .rsp     (mem_rsp  ),
-        .mem_rdy (mem_rdy  )
+        .clk       (clk       ),
+        .rst       (rst       ),
+        .dbg_pause (dbg_pause ),
+        .dbg_req   (dbg_req   ),
+        .mem_req   (mem_req   ),
+        .mem_rsp   (mem_rsp   ),
+        .mem_rdy   (mem_rdy   )
     );
 
 endmodule

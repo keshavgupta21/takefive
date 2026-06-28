@@ -66,9 +66,14 @@ package takefive_pkg;
     } inst_t;
 
     typedef struct packed {
+        logic [4:0] rs1;
+        logic [4:0] rs2;
+    } rf_rd_req_t;
+
+    typedef struct packed {
         logic [31:0] rval1;
         logic [31:0] rval2;
-    } rvals_t;
+    } rf_rd_rsp_t;
 
     typedef struct packed {
         logic        vld;
@@ -80,14 +85,14 @@ package takefive_pkg;
         logic        vld;
         logic [31:0] pc;
         inst_t       inst;
-        rvals_t      rvals;
+        rf_rd_rsp_t      rvals;
     } r2e_t;
 
     typedef struct packed {
         logic        vld;
         logic [31:0] pc;
         inst_t       inst;
-        rvals_t      rvals;
+        rf_rd_rsp_t      rvals;
         logic [31:0] alu_out;
     } e2w_t;
 
@@ -95,7 +100,7 @@ package takefive_pkg;
         logic [4:0]  rd;
         logic        wen;
         logic [31:0] wdata;
-    } rfwb_t;
+    } rf_wr_req_t;
 
     typedef struct packed {
         logic        annul;
