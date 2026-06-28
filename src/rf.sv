@@ -34,30 +34,20 @@ module rf #(
             rfwb_mux = rfwb;
         end
     end
+    assign dbg_rval = rvals.rval2;
 
     // Port 1
     logic [31:0] regs1 [0:31];
-
     always_ff @(posedge clk) begin
         if (rfwb_mux.wen && rfwb_mux.rd != 5'b0) regs1[rfwb_mux.rd] <= rfwb_mux.wdata;
     end
-
     assign rvals.rval1 = regs1[rs1];
 
     // Port 2
     logic [31:0] regs2 [0:31];
-
     always_ff @(posedge clk) begin
         if (rfwb_mux.wen && rfwb_mux.rd != 5'b0) regs2[rfwb_mux.rd] <= rfwb_mux.wdata;
     end
-
     assign rvals.rval2 = regs2[rs2_mux];
-
-    // Debug read port
-    if (DEBUG_EN) begin : gen_dbg_rval
-        assign dbg_rval = rvals.rval2;
-    end else begin : gen_no_dbg_rval
-        assign dbg_rval = 32'b0;
-    end
 
 endmodule
