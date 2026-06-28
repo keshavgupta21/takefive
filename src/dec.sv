@@ -8,12 +8,12 @@ module dec
 
     always_comb begin
         d2r.pc          = f2d.pc;
-        d2r.inst.opc    = f2d.inst[6:0];
+        d2r.inst.opc    = takefive_pkg::opc_t'(f2d.inst[6:0]);
         d2r.inst.rd     = f2d.inst[11:7];
         d2r.inst.rs1    = f2d.inst[19:15];
         d2r.inst.rs2    = f2d.inst[24:20];
         d2r.inst.funct3 = f2d.inst[14:12];
-        d2r.inst.funct7 = f2d.inst[31:25];
+        d2r.inst.funct7 = takefive_pkg::f7_t'(f2d.inst[31:25]);
 
         case (d2r.inst.opc)
             takefive_pkg::OPC_LOAD, takefive_pkg::OPC_IMM, takefive_pkg::OPC_JALR:

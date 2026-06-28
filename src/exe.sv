@@ -34,10 +34,10 @@ module exe
     assign alu_b = (r2e.inst.opc == takefive_pkg::OPC_REG) ? r2e.rvals.rval2 : r2e.inst.imm;
 
     logic sub;
-    assign sub = (r2e.inst.opc == takefive_pkg::OPC_REG) & r2e.inst.funct7[5];
+    assign sub = (r2e.inst.opc == takefive_pkg::OPC_REG) & (r2e.inst.funct7 == takefive_pkg::F7_ALT);
 
     logic ari;
-    assign ari = r2e.inst.funct7[5];
+    assign ari = (r2e.inst.funct7 == takefive_pkg::F7_ALT);
 
     logic [31:0] alu_out;
     assign alu_out = alu(r2e.rvals.rval1, alu_b, r2e.inst.funct3, sub, ari);

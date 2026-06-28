@@ -21,12 +21,12 @@ module mem_wrap (
     takefive_pkg::r2e_t r2e;
     assign r2e.pc          = 32'b0;
     assign r2e.inst.vld    = inst_vld;
-    assign r2e.inst.opc    = inst_opc;
+    assign r2e.inst.opc    = takefive_pkg::opc_t'(inst_opc);
     assign r2e.inst.rd     = inst_rd;
     assign r2e.inst.rs1    = inst_rs1;
     assign r2e.inst.rs2    = inst_rs2;
     assign r2e.inst.funct3 = inst_funct3;
-    assign r2e.inst.funct7 = inst_funct7;
+    assign r2e.inst.funct7 = takefive_pkg::f7_t'(inst_funct7);
     assign r2e.inst.imm    = inst_imm;
     assign r2e.rvals.rval1 = rval1;
     assign r2e.rvals.rval2 = rval2;
