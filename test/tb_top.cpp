@@ -666,6 +666,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
 
     CoreRef ref(depth);
     CoreRef::Stats total = {};
+    uint64_t total_hw_cycles = 0;
     std::uniform_int_distribution<uint32_t> val_dist;
     std::vector<uint32_t> prog(depth);
 
@@ -697,12 +698,13 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
             ref.tick();
 
         int retired = 0;
+        int hw_cycles = 0;
         bool timed_out = false;
-        for (int cycle = 0; retired < n; cycle++) {
-            if (cycle >= n * timeout_factor) {
+        for (; retired < n; hw_cycles++) {
+            if (hw_cycles >= n * timeout_factor) {
                 std::cerr << "FAIL " << name << " [round=" << r
                           << "] timeout: retired " << retired
-                          << " / " << n << " after " << cycle
+                          << " / " << n << " after " << hw_cycles
                           << " cycles\n";
                 timed_out = true;
                 break;
@@ -744,6 +746,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
             return report(name, 1, r + 1);
         }
 
+        total_hw_cycles          += hw_cycles;
         auto &s = ref.stats();
         total.cycles             += s.cycles;
         total.valid              += s.valid;
@@ -758,8 +761,10 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
     }
 
     int rc = report(name, 0, n_rounds);
-    std::cout << "  cycles:              " << total.cycles << "\n"
-              << "  valid:               " << total.valid << "\n"
+    double cpi = total.valid ? (double)total_hw_cycles / total.valid : 0.0;
+    std::cout << "  instructions:        " << total.valid << "\n"
+              << "  hw_cycles:           " << total_hw_cycles << "\n"
+              << "  CPI:                 " << std::fixed << std::setprecision(2) << cpi << "\n"
               << "  alu:                 " << total.alu << "\n"
               << "  branches_taken:      " << total.branches_taken << "\n"
               << "  branches_not_taken:  " << total.branches_not_taken << "\n"
