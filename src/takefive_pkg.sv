@@ -89,7 +89,6 @@ package takefive_pkg;
         inst_t       inst;
         rvals_t      rvals;
         logic [31:0] alu_out;
-        logic [31:0] mem_data;
     } e2w_t;
 
     typedef struct packed {

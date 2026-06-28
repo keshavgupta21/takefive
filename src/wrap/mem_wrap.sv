@@ -34,9 +34,13 @@ module mem_wrap (
 
     takefive_pkg::mem_req_t mem_req;
 
+    logic mem_stall;
+
     mem u_mem(
-        .r2e     (r2e    ),
-        .mem_req (mem_req)
+        .r2e      (r2e      ),
+        .dmem_rdy (1'b1     ),
+        .mem_req  (mem_req  ),
+        .stall    (mem_stall)
     );
 
     assign mem_req_vld  = mem_req.vld;

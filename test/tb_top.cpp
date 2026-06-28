@@ -598,7 +598,7 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
 
         dut.set_nxt_pc(false, 0, 0);
         dut.set_rst(true);
-        dut.eval();
+        dut.tick();
 
         for (int i = 0; i < n; i++) {
             uint32_t inst = val_dist(rng);
@@ -608,9 +608,9 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
         }
 
         dut.clear_write();
-        dut.set_rst(false);
         dut.set_nxt_pc(false, 0, 0);
         dut.tick();
+        dut.set_rst(false);
         ref.reset();
 
         for (int i = 0; i < n;) {
@@ -690,6 +690,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
         int n = len_dist(rng);
 
         dut.set_rst(true);
+        dut.tick();
         dut.set_pause(true);
 
         for (int i = 0; i < depth; i++) {
@@ -706,8 +707,9 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
             dut.tick();
         }
 
-        dut.set_rst(false);
         dut.set_pause(false);
+        dut.tick();
+        dut.set_rst(false);
         ref.reset();
 
         std::vector<uint32_t> ref_pcs(n);
@@ -738,9 +740,6 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
             dump_program(prog, depth);
             return report(name, 1, r + 1);
         }
-
-        // One more tick so the last instruction's rfwb is written to the RF
-        dut.tick();
 
         dut.set_pause(true);
         dut.eval();

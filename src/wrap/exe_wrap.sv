@@ -41,18 +41,26 @@ module exe_wrap (
     );
 
     takefive_pkg::e2w_t e2w;
-    assign e2w.vld      = r2e.vld;
-    assign e2w.pc       = r2e.pc;
-    assign e2w.inst     = r2e.inst;
-    assign e2w.rvals    = r2e.rvals;
-    assign e2w.alu_out  = alu_out;
-    assign e2w.mem_data = mem_data;
+    assign e2w.vld     = r2e.vld;
+    assign e2w.pc      = r2e.pc;
+    assign e2w.inst    = r2e.inst;
+    assign e2w.rvals   = r2e.rvals;
+    assign e2w.alu_out = alu_out;
+
+    takefive_pkg::mem_rsp_t dmem_rsp;
+    assign dmem_rsp.vld  = 1'b1;
+    assign dmem_rsp.addr = 32'b0;
+    assign dmem_rsp.data = mem_data;
 
     takefive_pkg::rfwb_t rfwb;
 
+    logic wb_stall;
+
     wb u_wb(
-        .e2w  (e2w ),
-        .rfwb (rfwb)
+        .e2w      (e2w      ),
+        .dmem_rsp (dmem_rsp ),
+        .rfwb     (rfwb     ),
+        .stall    (wb_stall )
     );
 
     assign rfwb_rd    = rfwb.rd;

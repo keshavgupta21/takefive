@@ -19,7 +19,6 @@ module core #(
     output logic [31:0]            dbg_pc,
     output logic [31:0]            dbg_rval,
     output logic                   dbg_commit,
-
     input  logic                   dbg_rf_wr,
     input  logic [4:0]             dbg_rf_rd,
     input  logic [31:0]            dbg_rf_data
@@ -31,8 +30,8 @@ module core #(
     takefive_pkg::f2d_t    f2d;
     takefive_pkg::annul_t annul;
 
-    logic byp_stall, dec_stall, stall;
-    assign stall = byp_stall || dec_stall;
+    logic dec_stall, rf_stall, dmem_stall, wb_stall, stall;
+    assign stall = dec_stall || rf_stall || dmem_stall || wb_stall;
 
     fetch #(.DEBUG_EN(DEBUG_EN)) u_fetch(
         .clk       (clk      ),
@@ -50,12 +49,12 @@ module core #(
     // ---------------- Decode ----------------
     takefive_pkg::d2r_t d2r;
 
-    assign dec_stall = !f2d.vld;
-
     dec u_dec(
         .f2d (f2d),
         .d2r (d2r)
     );
+
+    assign dec_stall = !f2d.vld;
 
     // ---------------- RegFile ----------------
     takefive_pkg::rvals_t rvals;
@@ -83,21 +82,28 @@ module core #(
         .r2e       (r2e      ),
         .rfwb      (rfwb     ),
         .byp_rvals (byp_rvals),
-        .stall     (byp_stall)
+        .stall     (rf_stall )
     );
 
     takefive_pkg::r2e_t r2e;
     always_ff @(posedge clk) begin
-        if (annul.annul || stall) begin
+        if (rst) begin
             r2e.vld   <= 0;
             r2e.pc    <= '0;
             r2e.inst  <= '0;
             r2e.rvals <= '0;
-        end else begin
-            r2e.vld   <= d2r.vld;
-            r2e.pc    <= d2r.pc;
-            r2e.inst  <= d2r.inst;
-            r2e.rvals <= byp_rvals;
+        end else if (!dmem_stall && !wb_stall) begin
+            if (annul.annul || dec_stall || rf_stall) begin
+                r2e.vld   <= 0;
+                r2e.pc    <= '0;
+                r2e.inst  <= '0;
+                r2e.rvals <= '0;
+            end else begin
+                r2e.vld   <= d2r.vld;
+                r2e.pc    <= d2r.pc;
+                r2e.inst  <= d2r.inst;
+                r2e.rvals <= byp_rvals;
+            end
         end
     end
 
@@ -116,28 +122,54 @@ module core #(
     );
 
     mem u_mem(
-        .r2e     (r2e     ),
-        .mem_req (dmem_req)
+        .r2e      (r2e       ),
+        .dmem_rdy (dmem_rdy  ),
+        .mem_req  (dmem_req  ),
+        .stall    (dmem_stall)
     );
 
     takefive_pkg::e2w_t e2w;
     always_ff @(posedge clk) begin
-        e2w.vld     <= r2e.vld;
-        e2w.pc      <= r2e.pc;
-        e2w.inst    <= r2e.inst;
-        e2w.rvals   <= r2e.rvals;
-        e2w.alu_out <= alu_out;
+        if (rst) begin
+            e2w.vld     <= 0;
+            e2w.pc      <= '0;
+            e2w.inst    <= '0;
+            e2w.rvals   <= '0;
+            e2w.alu_out <= '0;
+        end else if (!wb_stall) begin
+            if (dmem_stall) begin
+                e2w.vld     <= 0;
+                e2w.pc      <= '0;
+                e2w.inst    <= '0;
+                e2w.rvals   <= '0;
+                e2w.alu_out <= '0;
+            end else begin
+                e2w.vld     <= r2e.vld;
+                e2w.pc      <= r2e.pc;
+                e2w.inst    <= r2e.inst;
+                e2w.rvals   <= r2e.rvals;
+                e2w.alu_out <= alu_out;
+            end
+        end
     end
-    assign e2w.mem_data = dmem_rsp.data;
 
     //         --- PIPELINE STAGE 4 ---
     // ---------------- Writeback ----------------
     wb u_wb(
-        .e2w  (e2w ),
-        .rfwb (rfwb)
+        .e2w      (e2w      ),
+        .dmem_rsp (dmem_rsp ),
+        .rfwb     (rfwb     ),
+        .stall    (wb_stall )
     );
 
-    assign dbg_pc     = e2w.pc;
-    assign dbg_commit = e2w.vld;
+    always_ff @(posedge clk) begin
+        if (rst || wb_stall) begin
+            dbg_pc     <= '0;
+            dbg_commit <= 0;
+        end else begin
+            dbg_pc     <= e2w.pc;
+            dbg_commit <= e2w.vld;
+        end
+    end
 
 endmodule

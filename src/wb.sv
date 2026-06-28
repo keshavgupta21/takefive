@@ -2,15 +2,18 @@
 
 module wb
 (
-    input  takefive_pkg::e2w_t  e2w,
+    input  takefive_pkg::e2w_t   e2w,
+    input  takefive_pkg::mem_rsp_t dmem_rsp,
 
-    output takefive_pkg::rfwb_t rfwb
+    output takefive_pkg::rfwb_t rfwb,
+    output logic                stall
 );
 
     always_comb begin
         rfwb.rd    = e2w.inst.rd;
         rfwb.wen   = 1'b0;
         rfwb.wdata = 32'b0;
+        stall      = 0;
 
         if (e2w.vld) begin
             case (e2w.inst.opc)
@@ -40,13 +43,13 @@ module wb
                 end
 
                 takefive_pkg::OPC_LOAD: begin
-                    rfwb.wen   = 1'b1;
-                    rfwb.wdata = e2w.mem_data;
+                    rfwb.wen   = dmem_rsp.vld;
+                    rfwb.wdata = dmem_rsp.data;
+                    stall      = !dmem_rsp.vld;
                 end
 
                 default: ;
             endcase
         end
     end
-
 endmodule
