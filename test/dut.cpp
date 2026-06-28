@@ -1,4 +1,41 @@
 #include "dut.h"
+#include <vector>
+#include <functional>
+
+#ifdef WAVES
+static VerilatedVcdC* g_trace = nullptr;
+static uint64_t g_time = 0;
+static const char* g_trace_filename = nullptr;
+static std::vector<std::function<void()>> g_trace_cbs;
+
+void waves_init() {
+    Verilated::traceEverOn(true);
+    g_trace = new VerilatedVcdC;
+}
+
+void waves_open(const char* filename) {
+    g_trace_filename = filename;
+    if (g_trace) g_trace->open(filename);
+}
+
+void waves_reset() {
+    if (!g_trace) return;
+    g_trace->close();
+    delete g_trace;
+    g_trace = new VerilatedVcdC;
+    g_time = 0;
+    for (auto& cb : g_trace_cbs) cb();
+    g_trace->open(g_trace_filename);
+}
+
+void waves_close() {
+    if (g_trace) {
+        g_trace->close();
+        delete g_trace;
+        g_trace = nullptr;
+    }
+}
+#endif
 
 // ---- DecDut ----
 
@@ -187,6 +224,12 @@ FetchDut::FetchDut() : model_(new Vfetch_wrap) {
     model_->annul_nxt_pc = 0;
     model_->dbg_pause     = 0;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) {
+        model_->trace(g_trace, 99);
+        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
+    }
+#endif
 }
 
 FetchDut::~FetchDut() {
@@ -197,8 +240,14 @@ FetchDut::~FetchDut() {
 void FetchDut::tick() {
     model_->clk = 0;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
     model_->clk = 1;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
 }
 
 void FetchDut::eval() {
@@ -247,6 +296,12 @@ CoreDut::CoreDut() : model_(new Vcore_wrap) {
     model_->rf_wr_rd   = 0;
     model_->rf_wr_data = 0;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) {
+        model_->trace(g_trace, 99);
+        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
+    }
+#endif
 }
 
 CoreDut::~CoreDut() {
@@ -257,8 +312,14 @@ CoreDut::~CoreDut() {
 void CoreDut::tick() {
     model_->clk = 0;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
     model_->clk = 1;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
 }
 
 void CoreDut::eval() {
@@ -316,6 +377,12 @@ RfDut::RfDut() : model_(new Vrf_wrap) {
     model_->rfwb_wen   = 0;
     model_->rfwb_wdata = 0;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) {
+        model_->trace(g_trace, 99);
+        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
+    }
+#endif
 }
 
 RfDut::~RfDut() {
@@ -326,8 +393,14 @@ RfDut::~RfDut() {
 void RfDut::tick() {
     model_->clk = 0;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
     model_->clk = 1;
     model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
 }
 
 void RfDut::set_read(uint8_t rs1, uint8_t rs2) {

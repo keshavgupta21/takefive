@@ -8,9 +8,11 @@ module core #(
 
     output takefive_pkg::mem_req_t imem_req,
     input  takefive_pkg::mem_rsp_t imem_rsp,
+    input  logic                   imem_rdy,
 
     output takefive_pkg::mem_req_t dmem_req,
     input  takefive_pkg::mem_rsp_t dmem_rsp,
+    input  logic                   dmem_rdy,
 
     input  logic                   dbg_pause,
     input  logic [4:0]             dbg_rs,
@@ -29,13 +31,15 @@ module core #(
     takefive_pkg::f2d_t    f2d;
     takefive_pkg::annul_t annul;
 
-    logic stall;
+    logic byp_stall, dec_stall, stall;
+    assign stall = byp_stall || dec_stall;
 
     fetch #(.DEBUG_EN(DEBUG_EN)) u_fetch(
         .clk       (clk      ),
         .rst       (rst      ),
         .mem_req   (imem_req ),
         .mem_rsp   (imem_rsp ),
+        .mem_rdy   (imem_rdy ),
         .f2d       (f2d      ),
         .annul     (annul    ),
         .stall     (stall    ),
@@ -45,6 +49,8 @@ module core #(
     //         --- PIPELINE STAGE 2 ---
     // ---------------- Decode ----------------
     takefive_pkg::d2r_t d2r;
+
+    assign dec_stall = !f2d.vld;
 
     dec u_dec(
         .f2d (f2d),
@@ -69,15 +75,16 @@ module core #(
         .dbg_rf_data (dbg_rf_data )
     );
 
-    // handle stalls and annulments
-    logic rs1_hazard, rs2_hazard;
-    assign rs1_hazard = (d2r.inst.rs1 != 5'b0)
-                     && ((r2e.vld && r2e.inst.rd == d2r.inst.rs1)
-                      || (e2w.vld && e2w.inst.rd == d2r.inst.rs1));
-    assign rs2_hazard = d2r.inst.rs2_vld && (d2r.inst.rs2 != 5'b0)
-                     && ((r2e.vld && r2e.inst.rd == d2r.inst.rs2)
-                      || (e2w.vld && e2w.inst.rd == d2r.inst.rs2));
-    assign stall = d2r.vld && (rs1_hazard || rs2_hazard);
+    takefive_pkg::rvals_t byp_rvals;
+
+    bypass u_bypass(
+        .inst      (d2r.inst ),
+        .rd_rvals  (rvals    ),
+        .r2e       (r2e      ),
+        .rfwb      (rfwb     ),
+        .byp_rvals (byp_rvals),
+        .stall     (byp_stall)
+    );
 
     takefive_pkg::r2e_t r2e;
     always_ff @(posedge clk) begin
@@ -90,7 +97,7 @@ module core #(
             r2e.vld   <= d2r.vld;
             r2e.pc    <= d2r.pc;
             r2e.inst  <= d2r.inst;
-            r2e.rvals <= rvals;
+            r2e.rvals <= byp_rvals;
         end
     end
 

@@ -8,6 +8,7 @@ module fetch #(
 
     output takefive_pkg::mem_req_t mem_req,
     input  takefive_pkg::mem_rsp_t mem_rsp,
+    input  logic                   mem_rdy,
 
     output takefive_pkg::f2d_t     f2d,
 
@@ -17,28 +18,32 @@ module fetch #(
     input  logic                   dbg_pause
 );
 
-    logic [31:0] next_pc_val;
+    logic [31:0] pc, nxt_pc;
 
     always_comb begin
-        if (annul.annul)  next_pc_val = annul.nxt_pc;
-        else if (stall)   next_pc_val = f2d.pc;
-        else              next_pc_val = f2d.pc + 32'd4;
+        if (annul.annul)            nxt_pc = annul.nxt_pc;
+        else if (mem_rdy && !stall) nxt_pc = pc + 32'd4;
+        else                        nxt_pc = pc;
     end
 
-    assign mem_req.vld  = (!DEBUG_EN || !dbg_pause);
-    assign mem_req.addr = next_pc_val;
+    always_ff @(posedge clk) begin
+        if (rst)                          pc <= '0;
+        else if (!DEBUG_EN || !dbg_pause) pc <= nxt_pc;
+    end
+
+    assign mem_req.vld  = mem_rdy && (!DEBUG_EN || !dbg_pause);
+    assign mem_req.addr = nxt_pc;
     assign mem_req.wen  = 1'b0;
     assign mem_req.data = 32'b0;
 
+    logic invalidate_rd;
     always_ff @(posedge clk) begin
-        if (rst) begin
-            f2d.pc  <= 32'hFFFFFFFC;
-            f2d.vld <= 1'b0;
-        end else if (!DEBUG_EN || !dbg_pause) begin
-            f2d.pc  <= next_pc_val;
-            f2d.vld <= 1'b1;
-        end
+        if (rst)                          invalidate_rd <= 0;
+        else if (annul.annul && !mem_rdy) invalidate_rd <= 1;
+        else if (mem_rsp.vld)             invalidate_rd <= 0;
     end
 
+    assign f2d.vld  = mem_rsp.vld && !invalidate_rd;
+    assign f2d.pc   = mem_rsp.addr;
     assign f2d.inst = mem_rsp.data;
 endmodule

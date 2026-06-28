@@ -32,14 +32,17 @@ module fetch_wrap #(
 
     takefive_pkg::f2d_t f2d;
 
+    logic mem_rdy;
+
     fetch #(.DEBUG_EN(1)) u_fetch(
         .clk       (clk       ),
         .rst       (rst       ),
         .mem_req   (fetch_req ),
         .mem_rsp   (mem_rsp   ),
+        .mem_rdy   (mem_rdy   ),
         .f2d       (f2d       ),
         .annul     (annul     ),
-        .stall     (1'b0      ),
+        .stall     (!f2d.vld  ),
         .dbg_pause (dbg_pause )
     );
 
@@ -58,11 +61,13 @@ module fetch_wrap #(
         end
     end
 
-    block_mem #(.DEPTH(DEPTH)) u_mem(
-        .clk (clk     ),
-        .rst (rst     ),
-        .req (mem_req ),
-        .rsp (mem_rsp )
+    delay_mem #(.DEPTH(DEPTH)) u_mem(
+        .clk     (clk      ),
+        .rst     (rst      ),
+        .dbg     (dbg_pause),
+        .req     (mem_req  ),
+        .rsp     (mem_rsp  ),
+        .mem_rdy (mem_rdy  )
     );
 
 endmodule

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "verilated.h"
 #include "Vdec_wrap.h"
 #include "Vrf_wrap.h"
 #include "Vexe_wrap.h"
@@ -8,6 +9,16 @@
 #include "Vfetch_wrap.h"
 #include "Vcore_wrap.h"
 #include "ref.h"
+
+#ifdef WAVES
+#include "verilated_vcd_c.h"
+void waves_init();
+void waves_open(const char* filename);
+void waves_reset();
+void waves_close();
+#else
+inline void waves_reset() {}
+#endif
 
 class DecDut {
 public:

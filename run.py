@@ -41,7 +41,7 @@ def syn():
             sys.exit(result.returncode)
         print(f"==> Done. Netlist written to syn/{top}.v")
 
-def sim(use_netlist):
+def sim(use_netlist, use_waves):
     # Phase 1: verilate all top modules (model libraries only)
     for top in TOPS:
         if use_netlist:
@@ -53,6 +53,7 @@ def sim(use_netlist):
         (ROOT / mdir).mkdir(parents=True, exist_ok=True)
 
         lint_off = ["-Wno-UNUSEDPARAM", "-Wno-UNUSEDSIGNAL"]
+        trace_flags = ["--trace", "--trace-structs"] if use_waves else []
 
         run([
             "verilator", "--cc", "--build",
@@ -61,6 +62,7 @@ def sim(use_netlist):
             "-Isrc",
             "--Mdir", mdir,
             "--top-module", top,
+            *trace_flags,
             *sources,
         ])
 
@@ -72,14 +74,17 @@ def sim(use_netlist):
     inc_flags += ["-Itest", f"-I{vinc}", f"-I{vinc}/vltstd"]
 
     archives = [f"build/{top}/V{top}__ALL.a" for top in TOPS]
+    waves_flags = ["-DWAVES"] if use_waves else []
+    trace_objs = [f"{first}/verilated_vcd_c.o"] if use_waves else []
 
     (ROOT / "build").mkdir(parents=True, exist_ok=True)
 
     run([
         "c++", "-std=c++17", "-Os",
-        *inc_flags, "-DVERILATOR=1",
+        *inc_flags, "-DVERILATOR=1", *waves_flags,
         "test/tb_top.cpp", "test/ref.cpp", "test/dut.cpp",
         f"{first}/verilated.o", f"{first}/verilated_threads.o",
+        *trace_objs,
         *archives,
         "-Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv",
         "-pthread", "-lpthread",
@@ -89,6 +94,8 @@ def sim(use_netlist):
     tb_cmd = [str(ROOT / "build" / "tb_top")]
     if use_netlist:
         tb_cmd.append("++syn")
+    if use_waves:
+        tb_cmd.append("++waves")
     run(tb_cmd)
 
 def clean():
@@ -103,13 +110,19 @@ def main():
     do_syn   = "++syn" in args
     do_sim   = "++sim" in args
     do_clean = "++clean" in args
+    do_waves = "++waves" in args
+
+    if do_waves and do_syn:
+        print("Error: ++waves and ++syn cannot be used together")
+        sys.exit(1)
 
     if not do_syn and not do_sim and not do_clean:
-        print("Usage: ./run.py ++sim [++syn]")
-        print("  ++sim        Simulate with Verilator")
-        print("  ++syn        Synthesize with Yosys")
-        print("  ++sim ++syn  Synthesize, then simulate the netlist")
-        print("  ++clean      Remove build/ and syn/")
+        print("Usage: ./run.py ++sim [++syn] [++waves]")
+        print("  ++sim            Simulate with Verilator")
+        print("  ++syn            Synthesize with Yosys")
+        print("  ++sim ++syn      Synthesize, then simulate the netlist")
+        print("  ++sim ++waves    Simulate with VCD waveform output")
+        print("  ++clean          Remove build/ and syn/")
         sys.exit(1)
 
     if do_clean:
@@ -119,7 +132,7 @@ def main():
         syn()
 
     if do_sim:
-        sim(use_netlist=do_syn)
+        sim(use_netlist=do_syn, use_waves=do_waves)
 
 if __name__ == "__main__":
     main()

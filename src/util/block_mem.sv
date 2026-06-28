@@ -6,7 +6,8 @@ module block_mem #(
     input  logic                   clk,
     input  logic                   rst,
     input  takefive_pkg::mem_req_t req,
-    output takefive_pkg::mem_rsp_t rsp
+    output takefive_pkg::mem_rsp_t rsp,
+    output logic                   mem_rdy
 );
 
     localparam AWIDTH = $clog2(DEPTH);
@@ -32,5 +33,6 @@ module block_mem #(
     end
 
     assign rsp.data = dout;
+    assign mem_rdy  = 1'b1;
 
 endmodule

@@ -28,13 +28,18 @@ module core_wrap #(
     takefive_pkg::mem_req_t core_dmem_req;
     takefive_pkg::mem_rsp_t core_dmem_rsp;
 
+    logic imem_rdy;
+    logic dmem_rdy;
+
     core #(.DEBUG_EN(1)) u_core(
         .clk         (clk                    ),
         .rst         (rst                    ),
         .imem_req    (core_imem_req          ),
         .imem_rsp    (imem_rsp               ),
+        .imem_rdy    (imem_rdy               ),
         .dmem_req    (core_dmem_req          ),
         .dmem_rsp    (core_dmem_rsp          ),
+        .dmem_rdy    (dmem_rdy               ),
         .dbg_pause   (dbg_pause              ),
         .dbg_rs      (dbg_rs                 ),
         .dbg_pc      (dbg_pc                 ),
@@ -56,11 +61,13 @@ module core_wrap #(
         end
     end
 
-    block_mem #(.DEPTH(DEPTH)) u_imem(
-        .clk (clk     ),
-        .rst (rst     ),
-        .req (imem_req),
-        .rsp (imem_rsp)
+    delay_mem #(.DEPTH(DEPTH)) u_imem(
+        .clk     (clk      ),
+        .rst     (rst      ),
+        .dbg     (dbg_pause),
+        .req     (imem_req ),
+        .rsp     (imem_rsp ),
+        .mem_rdy (imem_rdy )
     );
 
     takefive_pkg::mem_req_t dmem_req;
@@ -76,10 +83,11 @@ module core_wrap #(
     end
 
     block_mem #(.DEPTH(DEPTH)) u_dmem(
-        .clk (clk          ),
-        .rst (rst          ),
-        .req (dmem_req     ),
-        .rsp (core_dmem_rsp)
+        .clk     (clk          ),
+        .rst     (rst          ),
+        .req     (dmem_req     ),
+        .rsp     (core_dmem_rsp),
+        .mem_rdy (dmem_rdy     )
     );
 
     // always_ff @(posedge clk) begin
