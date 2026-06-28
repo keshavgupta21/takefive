@@ -12,6 +12,7 @@ module fetch #(
     output takefive_pkg::f2d_t     f2d,
 
     input  takefive_pkg::annul_t   annul,
+    input  logic                   stall,
 
     input  logic                   dbg_pause
 );
@@ -19,8 +20,9 @@ module fetch #(
     logic [31:0] next_pc_val;
 
     always_comb begin
-        if (annul.annul) next_pc_val = annul.nxt_pc;
-        else            next_pc_val = f2d.pc + 32'd4;
+        if (annul.annul)  next_pc_val = annul.nxt_pc;
+        else if (stall)   next_pc_val = f2d.pc;
+        else              next_pc_val = f2d.pc + 32'd4;
     end
 
     assign mem_req.vld  = (!DEBUG_EN || !dbg_pause);

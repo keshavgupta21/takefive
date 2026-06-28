@@ -82,5 +82,11 @@ module core_wrap #(
         .rsp (core_dmem_rsp)
     );
 
+    // always_ff @(posedge clk) begin
+    //     $display("[PIPE] F=%02x D=%02x E=%02x W=%02x%s",
+    //         u_core.f2d.pc[7:0], u_core.d2r.pc[7:0],
+    //         u_core.r2e.pc[7:0], u_core.e2w.pc[7:0],
+    //         dbg_commit ? " COMMIT" : "");
+    // end
 
 endmodule

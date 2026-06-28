@@ -59,6 +59,7 @@ package takefive_pkg;
         logic [4:0]  rd;
         logic [4:0]  rs1;
         logic [4:0]  rs2;
+        logic        rs2_vld;
         logic [2:0]  funct3;
         f7_t         funct7;
         logic [31:0] imm;

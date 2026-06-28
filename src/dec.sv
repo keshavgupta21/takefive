@@ -90,6 +90,10 @@ module dec
         endcase
 
         d2r.vld = d2r.vld && f2d.vld;
+
+        d2r.inst.rs2_vld = (d2r.inst.opc == takefive_pkg::OPC_REG)
+                        || (d2r.inst.opc == takefive_pkg::OPC_STORE)
+                        || (d2r.inst.opc == takefive_pkg::OPC_BRANCH);
     end
 
 endmodule

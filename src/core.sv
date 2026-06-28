@@ -29,6 +29,8 @@ module core #(
     takefive_pkg::f2d_t    f2d;
     takefive_pkg::annul_t annul;
 
+    logic stall;
+
     fetch #(.DEBUG_EN(DEBUG_EN)) u_fetch(
         .clk       (clk      ),
         .rst       (rst      ),
@@ -36,6 +38,7 @@ module core #(
         .mem_rsp   (imem_rsp ),
         .f2d       (f2d      ),
         .annul     (annul    ),
+        .stall     (stall    ),
         .dbg_pause (dbg_pause)
     );
 
@@ -66,12 +69,29 @@ module core #(
         .dbg_rf_data (dbg_rf_data )
     );
 
+    // handle stalls and annulments
+    logic rs1_hazard, rs2_hazard;
+    assign rs1_hazard = (d2r.inst.rs1 != 5'b0)
+                     && ((r2e.vld && r2e.inst.rd == d2r.inst.rs1)
+                      || (e2w.vld && e2w.inst.rd == d2r.inst.rs1));
+    assign rs2_hazard = d2r.inst.rs2_vld && (d2r.inst.rs2 != 5'b0)
+                     && ((r2e.vld && r2e.inst.rd == d2r.inst.rs2)
+                      || (e2w.vld && e2w.inst.rd == d2r.inst.rs2));
+    assign stall = d2r.vld && (rs1_hazard || rs2_hazard);
+
     takefive_pkg::r2e_t r2e;
     always_ff @(posedge clk) begin
-        r2e.vld   <= d2r.vld;
-        r2e.pc    <= d2r.pc;
-        r2e.inst  <= d2r.inst;
-        r2e.rvals <= rvals;
+        if (annul.annul || stall) begin
+            r2e.vld   <= 0;
+            r2e.pc    <= '0;
+            r2e.inst  <= '0;
+            r2e.rvals <= '0;
+        end else begin
+            r2e.vld   <= d2r.vld;
+            r2e.pc    <= d2r.pc;
+            r2e.inst  <= d2r.inst;
+            r2e.rvals <= rvals;
+        end
     end
 
     //         --- PIPELINE STAGE 3 ---

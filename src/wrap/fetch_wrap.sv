@@ -39,6 +39,7 @@ module fetch_wrap #(
         .mem_rsp   (mem_rsp   ),
         .f2d       (f2d       ),
         .annul     (annul     ),
+        .stall     (1'b0      ),
         .dbg_pause (dbg_pause )
     );
 

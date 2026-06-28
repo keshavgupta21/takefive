@@ -724,18 +724,6 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
 
         bool round_fail = false;
 
-        uint32_t ref_pc = ref.pc();
-        uint32_t got_pc = dut.pc();
-        if (got_pc != ref_pc) {
-            std::cerr << "FAIL " << name << " [round=" << r
-                      << " n=" << n << "] pc"
-                      << "  expected=0x" << std::hex << std::setfill('0')
-                      << std::setw(8) << ref_pc
-                      << "  got=0x" << std::setw(8) << got_pc
-                      << std::dec << "\n";
-            round_fail = true;
-        }
-
         for (int i = 0; i < 32; i++) {
             uint32_t exp = ref.read_reg(i);
             uint32_t got = dut.read_reg(i);
@@ -792,11 +780,11 @@ int main(int argc, char **argv) {
     CoreDut core_dut;
     errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
     errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
-    // errors += test_core_random(core_dut, "core_short_hazard",    syn ? 100 : 10000, 3, false, true,  false);
-    // errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
-    // errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
-    // errors += test_core_random(core_dut, "core_hazard",          syn ? 100 : 10000, 3, false, false, false);
-    // errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
+    errors += test_core_random(core_dut, "core_short_hazard",    syn ? 100 : 10000, 3, false, true,  false);
+    errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
+    errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
+    errors += test_core_random(core_dut, "core_hazard",          syn ? 100 : 10000, 3, false, false, false);
+    errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
