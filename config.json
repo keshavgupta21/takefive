@@ -3,7 +3,8 @@
     "sources": [
         "src/takefive_pkg.sv",
         "src/dec.sv",
-        "src/exe.sv",
+        "src/alu.sv",
+        "src/wb.sv",
         "src/rf.sv",
         "src/branch.sv",
         "src/mem.sv",

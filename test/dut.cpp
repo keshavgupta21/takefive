@@ -48,11 +48,9 @@ ExeDut::ExeDut() : model_(new Vexe_wrap) {
     model_->inst_funct3   = 0;
     model_->inst_funct7   = 0;
     model_->inst_imm      = 0;
-    model_->rval1         = 0;
-    model_->rval2         = 0;
-    model_->dmem_rsp_vld  = 0;
-    model_->dmem_rsp_addr = 0;
-    model_->dmem_rsp_data = 0;
+    model_->rval1    = 0;
+    model_->rval2    = 0;
+    model_->mem_data = 0;
     model_->eval();
 }
 
@@ -63,20 +61,18 @@ ExeDut::~ExeDut() {
 
 void ExeDut::eval(uint32_t pc, const Decoded& inst,
                   uint32_t rval1, uint32_t rval2, uint32_t dmem_data) {
-    model_->pc            = pc;
-    model_->inst_vld      = inst.vld;
-    model_->inst_opc      = inst.opcode;
-    model_->inst_rd       = inst.rd;
-    model_->inst_rs1      = inst.rs1;
-    model_->inst_rs2      = inst.rs2;
-    model_->inst_funct3   = inst.funct3;
-    model_->inst_funct7   = inst.funct7;
-    model_->inst_imm      = inst.imm;
-    model_->rval1         = rval1;
-    model_->rval2         = rval2;
-    model_->dmem_rsp_vld  = 0;
-    model_->dmem_rsp_addr = 0;
-    model_->dmem_rsp_data = dmem_data;
+    model_->pc          = pc;
+    model_->inst_vld    = inst.vld;
+    model_->inst_opc    = inst.opcode;
+    model_->inst_rd     = inst.rd;
+    model_->inst_rs1    = inst.rs1;
+    model_->inst_rs2    = inst.rs2;
+    model_->inst_funct3 = inst.funct3;
+    model_->inst_funct7 = inst.funct7;
+    model_->inst_imm    = inst.imm;
+    model_->rval1       = rval1;
+    model_->rval2       = rval2;
+    model_->mem_data    = dmem_data;
     model_->eval();
 }
 
@@ -172,9 +168,9 @@ void BranchDut::eval(uint32_t pc, const Decoded& inst,
 
 NxtPcResult BranchDut::result() const {
     NxtPcResult r;
-    r.vld    = model_->nxt_pc_vld;
-    r.pc     = model_->nxt_pc_pc;
-    r.nxt_pc = model_->nxt_pc_nxt_pc;
+    r.vld    = model_->annul_annul;
+    r.pc     = model_->annul_pc;
+    r.nxt_pc = model_->annul_nxt_pc;
     return r;
 }
 
@@ -186,9 +182,9 @@ FetchDut::FetchDut() : model_(new Vfetch_wrap) {
     model_->wr_addr       = 0;
     model_->wr_data       = 0;
     model_->wr_en         = 0;
-    model_->nxt_pc_vld    = 0;
-    model_->nxt_pc_pc     = 0;
-    model_->nxt_pc_nxt_pc = 0;
+    model_->annul_annul  = 0;
+    model_->annul_pc     = 0;
+    model_->annul_nxt_pc = 0;
     model_->dbg_pause     = 0;
     model_->eval();
 }
@@ -214,9 +210,9 @@ void FetchDut::set_rst(bool r) {
 }
 
 void FetchDut::set_nxt_pc(bool vld, uint32_t pc, uint32_t nxt_pc) {
-    model_->nxt_pc_vld    = vld;
-    model_->nxt_pc_pc     = pc;
-    model_->nxt_pc_nxt_pc = nxt_pc;
+    model_->annul_annul  = vld;
+    model_->annul_pc     = pc;
+    model_->annul_nxt_pc = nxt_pc;
 }
 
 void FetchDut::write(uint32_t addr, uint32_t data) {

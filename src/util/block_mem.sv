@@ -18,13 +18,12 @@ module block_mem #(
 
     always_ff @(posedge clk) begin
         if (req.vld && req.wen) ram[idx] <= req.data;
-        if (rst) dout <= '0;
-        else     dout <= ram[idx];
+        dout <= ram[idx];
     end
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            rsp.vld  <= '0;
+            rsp.vld  <= 0;
             rsp.addr <= '0;
         end else begin
             rsp.vld  <= req.vld;

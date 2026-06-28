@@ -14,9 +14,9 @@ module fetch_wrap #(
     output logic [31:0] f_pc,
     output logic [31:0] f_inst,
 
-    input  logic        nxt_pc_vld,
-    input  logic [31:0] nxt_pc_pc,
-    input  logic [31:0] nxt_pc_nxt_pc,
+    input  logic        annul_annul,
+    input  logic [31:0] annul_pc,
+    input  logic [31:0] annul_nxt_pc,
 
     input  logic        dbg_pause
 );
@@ -25,10 +25,10 @@ module fetch_wrap #(
     takefive_pkg::mem_req_t mem_req;
     takefive_pkg::mem_rsp_t mem_rsp;
 
-    takefive_pkg::nxt_pc_t nxt_pc;
-    assign nxt_pc.vld    = nxt_pc_vld;
-    assign nxt_pc.pc     = nxt_pc_pc;
-    assign nxt_pc.nxt_pc = nxt_pc_nxt_pc;
+    takefive_pkg::annul_t annul;
+    assign annul.annul  = annul_annul;
+    assign annul.pc     = annul_pc;
+    assign annul.nxt_pc = annul_nxt_pc;
 
     takefive_pkg::f2d_t f2d;
 
@@ -38,7 +38,7 @@ module fetch_wrap #(
         .mem_req   (fetch_req ),
         .mem_rsp   (mem_rsp   ),
         .f2d       (f2d       ),
-        .nxt_pc    (nxt_pc    ),
+        .annul     (annul     ),
         .dbg_pause (dbg_pause )
     );
 
@@ -47,8 +47,14 @@ module fetch_wrap #(
     assign f_inst = f2d.inst;
 
     always_comb begin
-        if (dbg_pause) mem_req = '{vld: wr_en, addr: wr_addr, wen: wr_en, data: wr_data};
-        else           mem_req = fetch_req;
+        if (dbg_pause) begin
+            mem_req.vld  = wr_en;
+            mem_req.addr = wr_addr;
+            mem_req.wen  = wr_en;
+            mem_req.data = wr_data;
+        end else begin
+            mem_req = fetch_req;
+        end
     end
 
     block_mem #(.DEPTH(DEPTH)) u_mem(

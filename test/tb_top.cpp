@@ -657,7 +657,7 @@ static void dump_program(const std::vector<uint32_t> &prog, int depth) {
 
 static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
                             int hazard_dist, bool no_branches,
-                            bool short_prog = false) {
+                            bool short_prog = false, bool no_mem = false) {
     const int depth = 64;
     const int timeout_factor = 4;
     std::mt19937 rng(200);
@@ -675,7 +675,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
         dut.set_pause(true);
 
         for (int i = 0; i < depth; i++) {
-            prog[i] = pack(gen_random_inst(rng, hazard_dist, no_branches));
+            prog[i] = pack(gen_random_inst(rng, hazard_dist, no_branches, no_mem));
             ref.write_imem(i * 4, prog[i]);
             dut.write(i * 4, prog[i]);
             dut.tick();
@@ -715,6 +715,9 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
             dump_program(prog, depth);
             return report(name, 1, r + 1);
         }
+
+        // One more tick so the last instruction's rfwb is written to the RF
+        dut.tick();
 
         dut.set_pause(true);
         dut.eval();
@@ -787,12 +790,13 @@ int main(int argc, char **argv) {
     errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
 
     CoreDut core_dut;
-    errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 1, 3, true,  true);
-    // errors += test_core_random(core_dut, "core_short_hazard",    syn ? 100 : 10000, 3, false, true);
-    // errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true);
-    // errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false);
-    // errors += test_core_random(core_dut, "core_hazard",          syn ? 100 : 10000, 3, false, false);
-    // errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false);
+    errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
+    errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
+    // errors += test_core_random(core_dut, "core_short_hazard",    syn ? 100 : 10000, 3, false, true,  false);
+    // errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
+    // errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
+    // errors += test_core_random(core_dut, "core_hazard",          syn ? 100 : 10000, 3, false, false, false);
+    // errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }

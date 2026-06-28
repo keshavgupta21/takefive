@@ -13,9 +13,9 @@ module branch_wrap (
     input  logic [31:0] rval1,
     input  logic [31:0] rval2,
 
-    output logic        nxt_pc_vld,
-    output logic [31:0] nxt_pc_pc,
-    output logic [31:0] nxt_pc_nxt_pc
+    output logic        annul_annul,
+    output logic [31:0] annul_pc,
+    output logic [31:0] annul_nxt_pc
 );
 
     takefive_pkg::r2e_t r2e;
@@ -31,15 +31,15 @@ module branch_wrap (
     assign r2e.rvals.rval1 = rval1;
     assign r2e.rvals.rval2 = rval2;
 
-    takefive_pkg::nxt_pc_t nxt_pc;
+    takefive_pkg::annul_t annul;
 
     branch u_branch(
-        .r2e    (r2e   ),
-        .nxt_pc (nxt_pc)
+        .r2e   (r2e  ),
+        .annul (annul)
     );
 
-    assign nxt_pc_vld    = nxt_pc.vld;
-    assign nxt_pc_pc     = nxt_pc.pc;
-    assign nxt_pc_nxt_pc = nxt_pc.nxt_pc;
+    assign annul_annul  = annul.annul;
+    assign annul_pc     = annul.pc;
+    assign annul_nxt_pc = annul.nxt_pc;
 
 endmodule

@@ -27,7 +27,7 @@ module core #(
     // ---------------- Fetch ----------------
     // (fetch output is flopped)
     takefive_pkg::f2d_t    f2d;
-    takefive_pkg::nxt_pc_t nxt_pc;
+    takefive_pkg::annul_t annul;
 
     fetch #(.DEBUG_EN(DEBUG_EN)) u_fetch(
         .clk       (clk      ),
@@ -35,7 +35,7 @@ module core #(
         .mem_req   (imem_req ),
         .mem_rsp   (imem_rsp ),
         .f2d       (f2d      ),
-        .nxt_pc    (nxt_pc   ),
+        .annul     (annul    ),
         .dbg_pause (dbg_pause)
     );
 
@@ -74,23 +74,43 @@ module core #(
         r2e.rvals <= rvals;
     end
 
-    // ---------------- Exec ----------------
+    //         --- PIPELINE STAGE 3 ---
+    // ---------------- Execute / Mem ----------------
+    branch u_branch(
+        .r2e   (r2e  ),
+        .annul (annul)
+    );
+    
+    logic [31:0] alu_out;
+
+    alu u_alu(
+        .r2e     (r2e    ),
+        .alu_out (alu_out)
+    );
+
     mem u_mem(
         .r2e     (r2e     ),
         .mem_req (dmem_req)
     );
 
-    exe u_exe(
-        .r2e      (r2e     ),
-        .dmem_rsp (dmem_rsp),
-        .rfwb     (rfwb    )
+    takefive_pkg::e2w_t e2w;
+    always_ff @(posedge clk) begin
+        e2w.vld     <= r2e.vld;
+        e2w.pc      <= r2e.pc;
+        e2w.inst    <= r2e.inst;
+        e2w.rvals   <= r2e.rvals;
+        e2w.alu_out <= alu_out;
+    end
+    assign e2w.mem_data = dmem_rsp.data;
+
+    //         --- PIPELINE STAGE 4 ---
+    // ---------------- Writeback ----------------
+    wb u_wb(
+        .e2w  (e2w ),
+        .rfwb (rfwb)
     );
 
-    branch u_branch(
-        .r2e    (r2e   ),
-        .nxt_pc (nxt_pc)
-    );
+    assign dbg_pc     = e2w.pc;
+    assign dbg_commit = e2w.vld;
 
-    assign dbg_pc     = r2e.pc;
-    assign dbg_commit = r2e.vld;
 endmodule

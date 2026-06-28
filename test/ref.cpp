@@ -256,7 +256,12 @@ static bool uses_rs2(uint8_t opc) {
 
 static std::deque<uint8_t> recent_rds;
 
-Decoded gen_random_inst(std::mt19937 &rng, int hazard_dist, bool no_branches) {
+static bool is_mem_op(uint8_t opc) {
+    return opc == 0x03 || opc == 0x23;
+}
+
+Decoded gen_random_inst(std::mt19937 &rng, int hazard_dist, bool no_branches,
+                        bool no_mem) {
     std::uniform_int_distribution<uint32_t> val_dist;
     std::uniform_int_distribution<int>      type_dist(0, N_INST_TYPES - 1);
     std::uniform_int_distribution<uint8_t>  reg_dist(0, 31);
@@ -265,6 +270,7 @@ Decoded gen_random_inst(std::mt19937 &rng, int hazard_dist, bool no_branches) {
         const InstType &t = INST_TYPES[type_dist(rng)];
 
         if (no_branches && is_branch_or_jump(t.opc)) continue;
+        if (no_mem && is_mem_op(t.opc)) continue;
 
         uint8_t rd  = reg_dist(rng);
         uint8_t rs1 = reg_dist(rng);
@@ -546,6 +552,7 @@ CoreRef::CoreRef(size_t depth) : fetch_(depth), dmem_(depth), stats_{} {}
 
 void CoreRef::reset() {
     fetch_.reset();
+    dmem_.reset();
     stats_ = {};
 }
 

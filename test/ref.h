@@ -30,7 +30,8 @@ struct InstType { uint8_t opc; uint8_t f3; uint8_t f7; };
 extern const InstType INST_TYPES[];
 extern const int N_INST_TYPES;
 Decoded gen_random_inst(std::mt19937 &rng, int hazard_dist = 0,
-                        bool no_branches = false);
+                        bool no_branches = false,
+                        bool no_mem = false);
 
 class RfRef {
 public:

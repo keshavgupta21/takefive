@@ -63,11 +63,24 @@ module core_wrap #(
         .rsp (imem_rsp)
     );
 
+    takefive_pkg::mem_req_t dmem_req;
+    always_comb begin
+        if (dbg_pause) begin
+            dmem_req.vld  = wr_en;
+            dmem_req.addr = wr_addr;
+            dmem_req.wen  = wr_en;
+            dmem_req.data = 32'b0;
+        end else begin
+            dmem_req = core_dmem_req;
+        end
+    end
+
     block_mem #(.DEPTH(DEPTH)) u_dmem(
         .clk (clk          ),
         .rst (rst          ),
-        .req (core_dmem_req),
+        .req (dmem_req     ),
         .rsp (core_dmem_rsp)
     );
+
 
 endmodule
