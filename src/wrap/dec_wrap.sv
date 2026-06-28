@@ -28,7 +28,7 @@ module dec_wrap (
     );
 
     assign d_pc          = d2r.pc;
-    assign d_inst_vld    = d2r.inst.vld;
+    assign d_inst_vld    = d2r.vld;
     assign d_inst_opc    = d2r.inst.opc;
     assign d_inst_rd     = d2r.inst.rd;
     assign d_inst_rs1    = d2r.inst.rs1;

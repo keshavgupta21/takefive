@@ -85,6 +85,7 @@ public:
     void write_reg(uint8_t rd, uint32_t data);
     uint32_t read_reg(uint8_t rs);
     uint32_t pc();
+    bool commit();
 
 private:
     Vcore_wrap *model_;

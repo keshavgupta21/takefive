@@ -1,7 +1,7 @@
 `include "common.svh"
 
 module fetch_wrap #(
-    parameter DEPTH = 1024
+    parameter DEPTH = 64
 )(
     input  logic        clk,
     input  logic        rst,
@@ -33,13 +33,13 @@ module fetch_wrap #(
     takefive_pkg::f2d_t f2d;
 
     fetch #(.DEBUG_EN(1)) u_fetch(
-        .clk       (clk      ),
-        .rst       (rst      ),
-        .mem_req   (fetch_req),
-        .mem_rsp   (mem_rsp  ),
-        .f2d       (f2d      ),
-        .nxt_pc    (nxt_pc   ),
-        .dbg_pause (dbg_pause)
+        .clk       (clk       ),
+        .rst       (rst       ),
+        .mem_req   (fetch_req ),
+        .mem_rsp   (mem_rsp   ),
+        .f2d       (f2d       ),
+        .nxt_pc    (nxt_pc    ),
+        .dbg_pause (dbg_pause )
     );
 
     assign f_vld  = f2d.vld;
@@ -47,20 +47,15 @@ module fetch_wrap #(
     assign f_inst = f2d.inst;
 
     always_comb begin
-        if (dbg_pause) begin
-            mem_req.vld  = wr_en;
-            mem_req.addr = wr_addr;
-            mem_req.wen  = wr_en;
-            mem_req.data = wr_data;
-        end else begin
-            mem_req = fetch_req;
-        end
+        if (dbg_pause) mem_req = '{vld: wr_en, addr: wr_addr, wen: wr_en, data: wr_data};
+        else           mem_req = fetch_req;
     end
 
-    magic_mem #(.DEPTH(DEPTH)) u_mem(
-        .clk (clk    ),
-        .req (mem_req),
-        .rsp (mem_rsp)
+    block_mem #(.DEPTH(DEPTH)) u_mem(
+        .clk (clk     ),
+        .rst (rst     ),
+        .req (mem_req ),
+        .rsp (mem_rsp )
     );
 
 endmodule

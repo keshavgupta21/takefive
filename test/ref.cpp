@@ -1,5 +1,7 @@
 #include "ref.h"
+#include <deque>
 #include <iomanip>
+#include <sstream>
 
 bool Decoded::operator==(const Decoded& o) const {
     return vld == o.vld && opcode == o.opcode && rd == o.rd &&
@@ -19,6 +21,109 @@ std::ostream& operator<<(std::ostream& os, const Decoded& d) {
        << " f7=0x" << std::hex << std::setw(2) << (int)d.funct7
        << " imm=0x" << std::setw(8) << d.imm << std::dec;
     return os;
+}
+
+static const char *reg_name(uint8_t r) {
+    static const char *names[] = {
+        "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
+        "x8", "x9", "x10","x11","x12","x13","x14","x15",
+        "x16","x17","x18","x19","x20","x21","x22","x23",
+        "x24","x25","x26","x27","x28","x29","x30","x31"
+    };
+    return names[r & 0x1F];
+}
+
+std::string disasm(const Decoded& d) {
+    std::ostringstream os;
+    if (!d.vld) { os << "<invalid>"; return os.str(); }
+
+    auto imm = [&]() -> int32_t { return (int32_t)d.imm; };
+
+    switch (d.opcode) {
+        case 0x33: { // R-type
+            const char *mn = "???";
+            switch (d.funct3) {
+                case 0: mn = d.funct7 ? "SUB" : "ADD"; break;
+                case 1: mn = "SLL";  break;
+                case 2: mn = "SLT";  break;
+                case 3: mn = "SLTU"; break;
+                case 4: mn = "XOR";  break;
+                case 5: mn = d.funct7 ? "SRA" : "SRL"; break;
+                case 6: mn = "OR";   break;
+                case 7: mn = "AND";  break;
+            }
+            os << mn << " " << reg_name(d.rd) << ", "
+               << reg_name(d.rs1) << ", " << reg_name(d.rs2);
+            break;
+        }
+        case 0x13: { // I-type ALU
+            const char *mn = "???";
+            switch (d.funct3) {
+                case 0: mn = "ADDI";  break;
+                case 1: mn = "SLLI";  break;
+                case 2: mn = "SLTI";  break;
+                case 3: mn = "SLTIU"; break;
+                case 4: mn = "XORI";  break;
+                case 5: mn = d.funct7 ? "SRAI" : "SRLI"; break;
+                case 6: mn = "ORI";   break;
+                case 7: mn = "ANDI";  break;
+            }
+            if (d.funct3 == 1 || d.funct3 == 5)
+                os << mn << " " << reg_name(d.rd) << ", "
+                   << reg_name(d.rs1) << ", " << (d.imm & 0x1F);
+            else
+                os << mn << " " << reg_name(d.rd) << ", "
+                   << reg_name(d.rs1) << ", " << imm();
+            break;
+        }
+        case 0x03: // LW
+            os << "LW " << reg_name(d.rd) << ", "
+               << imm() << "(" << reg_name(d.rs1) << ")";
+            break;
+        case 0x23: // SW
+            os << "SW " << reg_name(d.rs2) << ", "
+               << imm() << "(" << reg_name(d.rs1) << ")";
+            break;
+        case 0x63: { // Branch
+            const char *mn = "???";
+            switch (d.funct3) {
+                case 0: mn = "BEQ";  break;
+                case 1: mn = "BNE";  break;
+                case 4: mn = "BLT";  break;
+                case 5: mn = "BGE";  break;
+                case 6: mn = "BLTU"; break;
+                case 7: mn = "BGEU"; break;
+            }
+            os << mn << " " << reg_name(d.rs1) << ", "
+               << reg_name(d.rs2) << ", " << imm();
+            break;
+        }
+        case 0x37: // LUI
+            os << "LUI " << reg_name(d.rd) << ", 0x"
+               << std::hex << (d.imm >> 12) << std::dec;
+            break;
+        case 0x17: // AUIPC
+            os << "AUIPC " << reg_name(d.rd) << ", 0x"
+               << std::hex << (d.imm >> 12) << std::dec;
+            break;
+        case 0x6F: // JAL
+            os << "JAL " << reg_name(d.rd) << ", " << imm();
+            break;
+        case 0x67: // JALR
+            os << "JALR " << reg_name(d.rd) << ", "
+               << reg_name(d.rs1) << ", " << imm();
+            break;
+        case 0x0F: // FENCE
+            os << "FENCE";
+            break;
+        case 0x73: // ECALL/EBREAK
+            os << (d.imm ? "EBREAK" : "ECALL");
+            break;
+        default:
+            os << "<unknown 0x" << std::hex << (int)d.opcode << ">";
+            break;
+    }
+    return os.str();
 }
 
 static uint32_t sext(uint32_t val, int bits) {
@@ -136,14 +241,54 @@ const InstType INST_TYPES[] = {
 };
 const int N_INST_TYPES = sizeof(INST_TYPES) / sizeof(INST_TYPES[0]);
 
-Decoded gen_random_inst(std::mt19937 &rng) {
+static bool is_branch_or_jump(uint8_t opc) {
+    return opc == 0x63 || opc == 0x6F || opc == 0x67;
+}
+
+static bool uses_rs1(uint8_t opc) {
+    return opc == 0x33 || opc == 0x13 || opc == 0x03 || opc == 0x23
+        || opc == 0x63 || opc == 0x67;
+}
+
+static bool uses_rs2(uint8_t opc) {
+    return opc == 0x33 || opc == 0x23 || opc == 0x63;
+}
+
+static std::deque<uint8_t> recent_rds;
+
+Decoded gen_random_inst(std::mt19937 &rng, int hazard_dist, bool no_branches) {
     std::uniform_int_distribution<uint32_t> val_dist;
     std::uniform_int_distribution<int>      type_dist(0, N_INST_TYPES - 1);
     std::uniform_int_distribution<uint8_t>  reg_dist(0, 31);
 
-    const InstType &t = INST_TYPES[type_dist(rng)];
-    return make_inst(true, t.opc, reg_dist(rng), reg_dist(rng), reg_dist(rng),
-                     t.f3, t.f7, val_dist(rng));
+    for (;;) {
+        const InstType &t = INST_TYPES[type_dist(rng)];
+
+        if (no_branches && is_branch_or_jump(t.opc)) continue;
+
+        uint8_t rd  = reg_dist(rng);
+        uint8_t rs1 = reg_dist(rng);
+        uint8_t rs2 = reg_dist(rng);
+
+        if (hazard_dist > 0) {
+            bool hazard = false;
+            int depth = std::min(hazard_dist, (int)recent_rds.size());
+            for (int i = 0; i < depth; i++) {
+                uint8_t prev_rd = recent_rds[recent_rds.size() - 1 - i];
+                if (prev_rd == 0) continue;
+                if (uses_rs1(t.opc) && rs1 == prev_rd) { hazard = true; break; }
+                if (uses_rs2(t.opc) && rs2 == prev_rd) { hazard = true; break; }
+            }
+            if (hazard) continue;
+        }
+
+        if (hazard_dist > 0) {
+            recent_rds.push_back(rd);
+            if ((int)recent_rds.size() > hazard_dist) recent_rds.pop_front();
+        }
+
+        return make_inst(true, t.opc, rd, rs1, rs2, t.f3, t.f7, val_dist(rng));
+    }
 }
 
 uint32_t pack(const Decoded& d) {

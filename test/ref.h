@@ -19,6 +19,7 @@ struct Decoded {
 };
 
 std::ostream& operator<<(std::ostream& os, const Decoded& d);
+std::string disasm(const Decoded& d);
 
 Decoded decode(uint32_t instr);
 uint32_t pack(const Decoded& d);
@@ -28,7 +29,8 @@ Decoded make_inst(bool vld, uint8_t opc, uint8_t rd, uint8_t rs1,
 struct InstType { uint8_t opc; uint8_t f3; uint8_t f7; };
 extern const InstType INST_TYPES[];
 extern const int N_INST_TYPES;
-Decoded gen_random_inst(std::mt19937 &rng);
+Decoded gen_random_inst(std::mt19937 &rng, int hazard_dist = 0,
+                        bool no_branches = false);
 
 class RfRef {
 public:

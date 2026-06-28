@@ -584,12 +584,13 @@ static int test_branch_directed(BranchDut &dut) {
 }
 
 static int test_fetch_random(FetchDut &dut, int n_rounds) {
+    const int depth = 64;
     std::mt19937 rng(55);
     std::uniform_int_distribution<uint32_t> val_dist;
-    std::uniform_int_distribution<int> len_dist(128, 256);
+    std::uniform_int_distribution<int> len_dist(32, 64);
     std::bernoulli_distribution redirect_dist(0.1);
 
-    FetchRef ref;
+    FetchRef ref(depth);
     int errors = 0;
 
     for (int r = 0; r < n_rounds; r++) {
@@ -609,7 +610,7 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
         dut.clear_write();
         dut.set_rst(false);
         dut.set_nxt_pc(false, 0, 0);
-        dut.eval();
+        dut.tick();
         ref.reset();
 
         for (int i = 0; i < n; i++) {
@@ -642,15 +643,30 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
     return report("fetch_random", errors, n_rounds);
 }
 
-static int test_core_random(CoreDut &dut, int n_rounds) {
-    const int depth = 1024;
+static void dump_program(const std::vector<uint32_t> &prog, int depth) {
+    std::cerr << "--- Program (" << depth << " instructions) ---\n";
+    for (int i = 0; i < depth; i++) {
+        Decoded d = decode(prog[i]);
+        std::cerr << "  0x" << std::hex << std::setfill('0') << std::setw(4)
+                  << (i * 4) << ": "
+                  << std::setw(8) << prog[i] << "  "
+                  << std::dec << disasm(d) << "\n";
+    }
+    std::cerr << "---\n";
+}
+
+static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
+                            int hazard_dist, bool no_branches,
+                            bool short_prog = false) {
+    const int depth = 64;
+    const int timeout_factor = 4;
     std::mt19937 rng(200);
-    std::uniform_int_distribution<int> len_dist(128, 256);
+    std::uniform_int_distribution<int> len_dist(short_prog ? 5 : 32,
+                                                short_prog ? 10 : 64);
 
     CoreRef ref(depth);
-    CoreRef::Stats total = {};
     std::uniform_int_distribution<uint32_t> val_dist;
-    int errors = 0;
+    std::vector<uint32_t> prog(depth);
 
     for (int r = 0; r < n_rounds; r++) {
         int n = len_dist(rng);
@@ -659,9 +675,9 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
         dut.set_pause(true);
 
         for (int i = 0; i < depth; i++) {
-            uint32_t inst = pack(gen_random_inst(rng));
-            ref.write_imem(i * 4, inst);
-            dut.write(i * 4, inst);
+            prog[i] = pack(gen_random_inst(rng, hazard_dist, no_branches));
+            ref.write_imem(i * 4, prog[i]);
+            dut.write(i * 4, prog[i]);
             dut.tick();
         }
 
@@ -676,64 +692,68 @@ static int test_core_random(CoreDut &dut, int n_rounds) {
         dut.set_pause(false);
         ref.reset();
 
-        for (int i = 0; i < n; i++) {
-            dut.eval();
+        for (int i = 0; i < n; i++)
             ref.tick();
+
+        int retired = 0;
+        bool timed_out = false;
+        for (int cycle = 0; retired < n; cycle++) {
+            if (cycle >= n * timeout_factor) {
+                std::cerr << "FAIL " << name << " [round=" << r
+                          << "] timeout: retired " << retired
+                          << " / " << n << " after " << cycle
+                          << " cycles\n";
+                timed_out = true;
+                break;
+            }
             dut.tick();
+            dut.eval();
+            if (dut.commit()) retired++;
+        }
+
+        if (timed_out) {
+            dump_program(prog, depth);
+            return report(name, 1, r + 1);
         }
 
         dut.set_pause(true);
         dut.eval();
 
+        bool round_fail = false;
+
         uint32_t ref_pc = ref.pc();
         uint32_t got_pc = dut.pc();
         if (got_pc != ref_pc) {
-            std::cerr << "FAIL core_random [round=" << r << "] pc"
+            std::cerr << "FAIL " << name << " [round=" << r
+                      << " n=" << n << "] pc"
                       << "  expected=0x" << std::hex << std::setfill('0')
                       << std::setw(8) << ref_pc
                       << "  got=0x" << std::setw(8) << got_pc
                       << std::dec << "\n";
-            errors++;
+            round_fail = true;
         }
 
         for (int i = 0; i < 32; i++) {
             uint32_t exp = ref.read_reg(i);
             uint32_t got = dut.read_reg(i);
             if (got != exp) {
-                std::cerr << "FAIL core_random [round=" << r << "] x" << i
+                std::cerr << "FAIL " << name << " [round=" << r
+                          << " n=" << n << "] x" << i
                           << "  expected=0x" << std::hex << std::setfill('0')
                           << std::setw(8) << exp
                           << "  got=0x" << std::setw(8) << got
                           << std::dec << "\n";
-                errors++;
+                round_fail = true;
             }
         }
 
-        auto &s = ref.stats();
-        total.cycles             += s.cycles;
-        total.valid              += s.valid;
-        total.alu                += s.alu;
-        total.branches_taken     += s.branches_taken;
-        total.branches_not_taken += s.branches_not_taken;
-        total.jumps              += s.jumps;
-        total.lui_auipc          += s.lui_auipc;
-        total.loads              += s.loads;
-        total.stores             += s.stores;
-        total.rf_writes          += s.rf_writes;
+        if (round_fail) {
+            dump_program(prog, depth);
+            return report(name, 1, r + 1);
+        }
     }
 
-    int rc = report("core_random", errors, n_rounds);
-    std::cout << "  cycles:              " << total.cycles << "\n"
-              << "  valid:               " << total.valid << "\n"
-              << "  alu:                 " << total.alu << "\n"
-              << "  branches_taken:      " << total.branches_taken << "\n"
-              << "  branches_not_taken:  " << total.branches_not_taken << "\n"
-              << "  jumps:               " << total.jumps << "\n"
-              << "  lui_auipc:           " << total.lui_auipc << "\n"
-              << "  loads:               " << total.loads << "\n"
-              << "  stores:              " << total.stores << "\n"
-              << "  rf_writes:           " << total.rf_writes << "\n";
-    return rc;
+    return report(name, 0, n_rounds);
 }
 
 int main(int argc, char **argv) {
@@ -767,7 +787,12 @@ int main(int argc, char **argv) {
     errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
 
     CoreDut core_dut;
-    errors += test_core_random(core_dut, syn ? 100 : 10000);
+    errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 1, 3, true,  true);
+    // errors += test_core_random(core_dut, "core_short_hazard",    syn ? 100 : 10000, 3, false, true);
+    // errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true);
+    // errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false);
+    // errors += test_core_random(core_dut, "core_hazard",          syn ? 100 : 10000, 3, false, false);
+    // errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false);
 
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -16,13 +16,16 @@ module core #(
     input  logic [4:0]             dbg_rs,
     output logic [31:0]            dbg_pc,
     output logic [31:0]            dbg_rval,
+    output logic                   dbg_commit,
 
     input  logic                   dbg_rf_wr,
     input  logic [4:0]             dbg_rf_rd,
     input  logic [31:0]            dbg_rf_data
 );
 
+    //         --- PIPELINE STAGE 1 ---
     // ---------------- Fetch ----------------
+    // (fetch output is flopped)
     takefive_pkg::f2d_t    f2d;
     takefive_pkg::nxt_pc_t nxt_pc;
 
@@ -36,6 +39,7 @@ module core #(
         .dbg_pause (dbg_pause)
     );
 
+    //         --- PIPELINE STAGE 2 ---
     // ---------------- Decode ----------------
     takefive_pkg::d2r_t d2r;
 
@@ -49,24 +53,26 @@ module core #(
     takefive_pkg::rfwb_t  rfwb;
 
     rf #(.DEBUG_EN(DEBUG_EN)) u_rf(
-        .clk          (clk          ),
-        .rs1          (d2r.inst.rs1 ),
-        .rs2          (d2r.inst.rs2 ),
-        .rvals        (rvals        ),
-        .rfwb         (rfwb         ),
-        .dbg_pause    (dbg_pause    ),
-        .dbg_rs       (dbg_rs       ),
-        .dbg_rval     (dbg_rval     ),
-        .dbg_rf_wr    (dbg_rf_wr    ),
-        .dbg_rf_rd    (dbg_rf_rd    ),
-        .dbg_rf_data  (dbg_rf_data  )
+        .clk         (clk         ),
+        .rs1         (d2r.inst.rs1),
+        .rs2         (d2r.inst.rs2),
+        .rvals       (rvals       ),
+        .rfwb        (rfwb        ),
+        .dbg_pause   (dbg_pause   ),
+        .dbg_rs      (dbg_rs      ),
+        .dbg_rval    (dbg_rval    ),
+        .dbg_rf_wr   (dbg_rf_wr   ),
+        .dbg_rf_rd   (dbg_rf_rd   ),
+        .dbg_rf_data (dbg_rf_data )
     );
-    assign dbg_pc = f2d.pc;
 
     takefive_pkg::r2e_t r2e;
-    assign r2e.pc    = d2r.pc;
-    assign r2e.inst  = d2r.inst;
-    assign r2e.rvals = rvals;
+    always_ff @(posedge clk) begin
+        r2e.vld   <= d2r.vld;
+        r2e.pc    <= d2r.pc;
+        r2e.inst  <= d2r.inst;
+        r2e.rvals <= rvals;
+    end
 
     // ---------------- Exec ----------------
     mem u_mem(
@@ -85,4 +91,6 @@ module core #(
         .nxt_pc (nxt_pc)
     );
 
+    assign dbg_pc     = r2e.pc;
+    assign dbg_commit = r2e.vld;
 endmodule

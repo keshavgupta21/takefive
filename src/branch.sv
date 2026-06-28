@@ -26,7 +26,7 @@ module branch
         nxt_pc.pc     = r2e.pc;
         nxt_pc.nxt_pc = 32'b0;
 
-        if (r2e.inst.vld) begin
+        if (r2e.vld) begin
             case (r2e.inst.opc)
                 takefive_pkg::OPC_BRANCH: begin
                     nxt_pc.vld    = cond;

@@ -55,7 +55,6 @@ package takefive_pkg;
     } f7_t;
 
     typedef struct packed {
-        logic        vld;
         opc_t        opc;
         logic [4:0]  rd;
         logic [4:0]  rs1;
@@ -71,11 +70,13 @@ package takefive_pkg;
     } rvals_t;
 
     typedef struct packed {
+        logic        vld;
         logic [31:0] pc;
         inst_t       inst;
     } d2r_t;
 
     typedef struct packed {
+        logic        vld;
         logic [31:0] pc;
         inst_t       inst;
         rvals_t      rvals;

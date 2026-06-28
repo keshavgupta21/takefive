@@ -1,7 +1,7 @@
 `include "common.svh"
 
 module core_wrap #(
-    parameter DEPTH = 1024
+    parameter DEPTH = 64
 )(
     input  logic        clk,
     input  logic        rst,
@@ -14,6 +14,7 @@ module core_wrap #(
     input  logic [4:0]  dbg_rs,
     output logic [31:0] dbg_pc,
     output logic [31:0] dbg_rval,
+    output logic        dbg_commit,
 
     input  logic        rf_wr_en,
     input  logic [4:0]  rf_wr_rd,
@@ -38,6 +39,7 @@ module core_wrap #(
         .dbg_rs      (dbg_rs                 ),
         .dbg_pc      (dbg_pc                 ),
         .dbg_rval    (dbg_rval               ),
+        .dbg_commit  (dbg_commit             ),
         .dbg_rf_wr   (rf_wr_en               ),
         .dbg_rf_rd   (rf_wr_rd               ),
         .dbg_rf_data (rf_wr_data             )
@@ -54,14 +56,16 @@ module core_wrap #(
         end
     end
 
-    magic_mem #(.DEPTH(DEPTH)) u_imem(
+    block_mem #(.DEPTH(DEPTH)) u_imem(
         .clk (clk     ),
+        .rst (rst     ),
         .req (imem_req),
         .rsp (imem_rsp)
     );
 
-    magic_mem #(.DEPTH(DEPTH)) u_dmem(
+    block_mem #(.DEPTH(DEPTH)) u_dmem(
         .clk (clk          ),
+        .rst (rst          ),
         .req (core_dmem_req),
         .rsp (core_dmem_rsp)
     );

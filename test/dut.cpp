@@ -306,6 +306,10 @@ uint32_t CoreDut::pc() {
     return model_->dbg_pc;
 }
 
+bool CoreDut::commit() {
+    return model_->dbg_commit;
+}
+
 // ---- RfDut ----
 
 RfDut::RfDut() : model_(new Vrf_wrap) {

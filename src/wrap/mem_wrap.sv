@@ -20,7 +20,7 @@ module mem_wrap (
 
     takefive_pkg::r2e_t r2e;
     assign r2e.pc          = 32'b0;
-    assign r2e.inst.vld    = inst_vld;
+    assign r2e.vld         = inst_vld;
     assign r2e.inst.opc    = takefive_pkg::opc_t'(inst_opc);
     assign r2e.inst.rd     = inst_rd;
     assign r2e.inst.rs1    = inst_rs1;

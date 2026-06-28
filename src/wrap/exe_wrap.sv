@@ -24,7 +24,7 @@ module exe_wrap (
 
     takefive_pkg::r2e_t r2e;
     assign r2e.pc          = pc;
-    assign r2e.inst.vld    = inst_vld;
+    assign r2e.vld         = inst_vld;
     assign r2e.inst.opc    = takefive_pkg::opc_t'(inst_opc);
     assign r2e.inst.rd     = inst_rd;
     assign r2e.inst.rs1    = inst_rs1;
@@ -45,7 +45,7 @@ module exe_wrap (
     exe u_exe(
         .r2e      (r2e     ),
         .dmem_rsp (dmem_rsp),
-        .rfwb      (rfwb     )
+        .rfwb     (rfwb    )
     );
 
     assign rfwb_rd    = rfwb.rd;

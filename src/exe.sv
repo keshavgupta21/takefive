@@ -47,7 +47,7 @@ module exe
         rfwb.wen   = 1'b0;
         rfwb.wdata = 32'b0;
 
-        if (r2e.inst.vld) begin
+        if (r2e.vld) begin
             case (r2e.inst.opc)
                 takefive_pkg::OPC_REG, takefive_pkg::OPC_IMM: begin
                     rfwb.wen   = 1'b1;

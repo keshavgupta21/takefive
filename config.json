@@ -13,6 +13,7 @@
         "src/wrap/mem_wrap.sv",
         "src/wrap/branch_wrap.sv",
         "src/util/magic_mem.sv",
+        "src/util/block_mem.sv",
         "src/fetch.sv",
         "src/core.sv",
         "src/wrap/fetch_wrap.sv",

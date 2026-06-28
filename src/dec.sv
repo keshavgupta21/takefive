@@ -39,31 +39,31 @@ module dec
             takefive_pkg::OPC_REG:
                 case (d2r.inst.funct3)
                     takefive_pkg::F3_ADD, takefive_pkg::F3_SR:
-                        d2r.inst.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE)
+                        d2r.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE)
                                     || (d2r.inst.funct7 == takefive_pkg::F7_ALT);
                     default:
-                        d2r.inst.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE);
+                        d2r.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE);
                 endcase
 
             takefive_pkg::OPC_IMM:
                 case (d2r.inst.funct3)
                     takefive_pkg::F3_SLL:
-                        d2r.inst.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE);
+                        d2r.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE);
                     takefive_pkg::F3_SR:
-                        d2r.inst.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE)
+                        d2r.vld = (d2r.inst.funct7 == takefive_pkg::F7_BASE)
                                     || (d2r.inst.funct7 == takefive_pkg::F7_ALT);
                     default:
-                        d2r.inst.vld = 1'b1;
+                        d2r.vld = 1'b1;
                 endcase
 
             takefive_pkg::OPC_LOAD:
-                d2r.inst.vld = (d2r.inst.funct3 == takefive_pkg::F3_W);
+                d2r.vld = (d2r.inst.funct3 == takefive_pkg::F3_W);
 
             takefive_pkg::OPC_STORE:
-                d2r.inst.vld = (d2r.inst.funct3 == takefive_pkg::F3_W);
+                d2r.vld = (d2r.inst.funct3 == takefive_pkg::F3_W);
 
             takefive_pkg::OPC_BRANCH:
-                d2r.inst.vld = (d2r.inst.funct3 == takefive_pkg::F3_BEQ)
+                d2r.vld = (d2r.inst.funct3 == takefive_pkg::F3_BEQ)
                             || (d2r.inst.funct3 == takefive_pkg::F3_BNE)
                             || (d2r.inst.funct3 == takefive_pkg::F3_BLT)
                             || (d2r.inst.funct3 == takefive_pkg::F3_BGE)
@@ -71,25 +71,25 @@ module dec
                             || (d2r.inst.funct3 == takefive_pkg::F3_BGEU);
 
             takefive_pkg::OPC_JALR:
-                d2r.inst.vld = (d2r.inst.funct3 == takefive_pkg::F3_ADD);
+                d2r.vld = (d2r.inst.funct3 == takefive_pkg::F3_ADD);
 
             takefive_pkg::OPC_LUI, takefive_pkg::OPC_AUIPC:
-                d2r.inst.vld = 1'b1;
+                d2r.vld = 1'b1;
 
             takefive_pkg::OPC_JAL:
-                d2r.inst.vld = 1'b1;
+                d2r.vld = 1'b1;
 
             takefive_pkg::OPC_FENCE:
-                d2r.inst.vld = (d2r.inst.funct3 == takefive_pkg::F3_ADD);
+                d2r.vld = (d2r.inst.funct3 == takefive_pkg::F3_ADD);
 
             takefive_pkg::OPC_SYSTEM:
-                d2r.inst.vld = (d2r.inst.funct3 == takefive_pkg::F3_ADD);
+                d2r.vld = (d2r.inst.funct3 == takefive_pkg::F3_ADD);
 
             default:
-                d2r.inst.vld = 1'b0;
+                d2r.vld = 1'b0;
         endcase
 
-        d2r.inst.vld = d2r.inst.vld && f2d.vld;
+        d2r.vld = d2r.vld && f2d.vld;
     end
 
 endmodule

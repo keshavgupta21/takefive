@@ -13,7 +13,7 @@ module mem
         mem_req.wen  = 1'b0;
         mem_req.data = r2e.rvals.rval2;
 
-        if (r2e.inst.vld) begin
+        if (r2e.vld) begin
             case (r2e.inst.opc)
                 takefive_pkg::OPC_LOAD: begin
                     mem_req.vld = 1'b1;
