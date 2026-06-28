@@ -15,26 +15,26 @@ module dec_wrap (
     output logic [31:0] d_inst_imm
 );
 
-    takefive_pkg::fetch_t fetch;
-    assign fetch.vld  = f_vld;
-    assign fetch.pc   = f_pc;
-    assign fetch.inst = f_inst;
+    takefive_pkg::f2d_t f2d;
+    assign f2d.vld  = f_vld;
+    assign f2d.pc   = f_pc;
+    assign f2d.inst = f_inst;
 
-    takefive_pkg::inst_t d_inst;
+    takefive_pkg::d2r_t d2r;
 
     dec u_dec(
-        .fetch  (fetch ),
-        .d_pc   (d_pc  ),
-        .d_inst (d_inst)
+        .f2d (f2d),
+        .d2r (d2r)
     );
 
-    assign d_inst_vld    = d_inst.vld;
-    assign d_inst_opc    = d_inst.opc;
-    assign d_inst_rd     = d_inst.rd;
-    assign d_inst_rs1    = d_inst.rs1;
-    assign d_inst_rs2    = d_inst.rs2;
-    assign d_inst_funct3 = d_inst.funct3;
-    assign d_inst_funct7 = d_inst.funct7;
-    assign d_inst_imm    = d_inst.imm;
+    assign d_pc          = d2r.pc;
+    assign d_inst_vld    = d2r.inst.vld;
+    assign d_inst_opc    = d2r.inst.opc;
+    assign d_inst_rd     = d2r.inst.rd;
+    assign d_inst_rs1    = d2r.inst.rs1;
+    assign d_inst_rs2    = d2r.inst.rs2;
+    assign d_inst_funct3 = d2r.inst.funct3;
+    assign d_inst_funct7 = d2r.inst.funct7;
+    assign d_inst_imm    = d2r.inst.imm;
 
 endmodule

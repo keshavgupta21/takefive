@@ -30,21 +30,21 @@ module fetch_wrap #(
     assign nxt_pc.pc     = nxt_pc_pc;
     assign nxt_pc.nxt_pc = nxt_pc_nxt_pc;
 
-    takefive_pkg::fetch_t fetch;
+    takefive_pkg::f2d_t f2d;
 
     fetch #(.DEBUG_EN(1)) u_fetch(
         .clk       (clk      ),
         .rst       (rst      ),
         .mem_req   (fetch_req),
         .mem_rsp   (mem_rsp  ),
-        .fetch     (fetch    ),
+        .f2d       (f2d      ),
         .nxt_pc    (nxt_pc   ),
         .dbg_pause (dbg_pause)
     );
 
-    assign f_vld  = fetch.vld;
-    assign f_pc   = fetch.pc;
-    assign f_inst = fetch.inst;
+    assign f_vld  = f2d.vld;
+    assign f_pc   = f2d.pc;
+    assign f_inst = f2d.inst;
 
     always_comb begin
         if (dbg_pause) begin

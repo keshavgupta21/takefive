@@ -5,7 +5,7 @@ package takefive_pkg;
         logic        vld;
         logic [31:0] pc;
         logic [31:0] inst;
-    } fetch_t;
+    } f2d_t;
 
     typedef struct packed {
         logic        vld;
@@ -22,6 +22,17 @@ package takefive_pkg;
         logic [31:0] rval1;
         logic [31:0] rval2;
     } rvals_t;
+
+    typedef struct packed {
+        logic [31:0] pc;
+        inst_t       inst;
+    } d2r_t;
+
+    typedef struct packed {
+        logic [31:0] pc;
+        inst_t       inst;
+        rvals_t      rvals;
+    } r2e_t;
 
     typedef struct packed {
         logic [4:0]  rd;

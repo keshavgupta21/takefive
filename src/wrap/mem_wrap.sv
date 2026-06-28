@@ -18,25 +18,23 @@ module mem_wrap (
     output logic [31:0] mem_req_data
 );
 
-    takefive_pkg::inst_t inst;
-    assign inst.vld    = inst_vld;
-    assign inst.opc    = inst_opc;
-    assign inst.rd     = inst_rd;
-    assign inst.rs1    = inst_rs1;
-    assign inst.rs2    = inst_rs2;
-    assign inst.funct3 = inst_funct3;
-    assign inst.funct7 = inst_funct7;
-    assign inst.imm    = inst_imm;
-
-    takefive_pkg::rvals_t rvals;
-    assign rvals.rval1 = rval1;
-    assign rvals.rval2 = rval2;
+    takefive_pkg::r2e_t r2e;
+    assign r2e.pc          = 32'b0;
+    assign r2e.inst.vld    = inst_vld;
+    assign r2e.inst.opc    = inst_opc;
+    assign r2e.inst.rd     = inst_rd;
+    assign r2e.inst.rs1    = inst_rs1;
+    assign r2e.inst.rs2    = inst_rs2;
+    assign r2e.inst.funct3 = inst_funct3;
+    assign r2e.inst.funct7 = inst_funct7;
+    assign r2e.inst.imm    = inst_imm;
+    assign r2e.rvals.rval1 = rval1;
+    assign r2e.rvals.rval2 = rval2;
 
     takefive_pkg::mem_req_t mem_req;
 
     mem u_mem(
-        .inst    (inst   ),
-        .rvals   (rvals  ),
+        .r2e     (r2e    ),
         .mem_req (mem_req)
     );
 

@@ -2,9 +2,7 @@
 
 module exe
 (
-    input  logic [31:0]            pc,
-    input  takefive_pkg::inst_t    inst,
-    input  takefive_pkg::rvals_t   rvals,
+    input  takefive_pkg::r2e_t     r2e,
 
     input  takefive_pkg::mem_rsp_t dmem_rsp,
 
@@ -33,24 +31,24 @@ module exe
     endfunction
 
     logic [31:0] alu_b;
-    assign alu_b = (inst.opc == takefive_pkg::OPC_REG) ? rvals.rval2 : inst.imm;
+    assign alu_b = (r2e.inst.opc == takefive_pkg::OPC_REG) ? r2e.rvals.rval2 : r2e.inst.imm;
 
     logic sub;
-    assign sub = (inst.opc == takefive_pkg::OPC_REG) & inst.funct7[5];
+    assign sub = (r2e.inst.opc == takefive_pkg::OPC_REG) & r2e.inst.funct7[5];
 
     logic ari;
-    assign ari = inst.funct7[5];
+    assign ari = r2e.inst.funct7[5];
 
     logic [31:0] alu_out;
-    assign alu_out = alu(rvals.rval1, alu_b, inst.funct3, sub, ari);
+    assign alu_out = alu(r2e.rvals.rval1, alu_b, r2e.inst.funct3, sub, ari);
 
     always_comb begin
-        rfwb.rd    = inst.rd;
+        rfwb.rd    = r2e.inst.rd;
         rfwb.wen   = 1'b0;
         rfwb.wdata = 32'b0;
 
-        if (inst.vld) begin
-            case (inst.opc)
+        if (r2e.inst.vld) begin
+            case (r2e.inst.opc)
                 takefive_pkg::OPC_REG, takefive_pkg::OPC_IMM: begin
                     rfwb.wen   = 1'b1;
                     rfwb.wdata = alu_out;
@@ -58,22 +56,22 @@ module exe
 
                 takefive_pkg::OPC_LUI: begin
                     rfwb.wen   = 1'b1;
-                    rfwb.wdata = inst.imm;
+                    rfwb.wdata = r2e.inst.imm;
                 end
 
                 takefive_pkg::OPC_AUIPC: begin
                     rfwb.wen   = 1'b1;
-                    rfwb.wdata = pc + inst.imm;
+                    rfwb.wdata = r2e.pc + r2e.inst.imm;
                 end
 
                 takefive_pkg::OPC_JAL: begin
                     rfwb.wen   = 1'b1;
-                    rfwb.wdata = pc + 32'd4;
+                    rfwb.wdata = r2e.pc + 32'd4;
                 end
 
                 takefive_pkg::OPC_JALR: begin
                     rfwb.wen   = 1'b1;
-                    rfwb.wdata = pc + 32'd4;
+                    rfwb.wdata = r2e.pc + 32'd4;
                 end
 
                 takefive_pkg::OPC_LOAD: begin

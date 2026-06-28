@@ -9,7 +9,7 @@ module fetch #(
     output takefive_pkg::mem_req_t mem_req,
     input  takefive_pkg::mem_rsp_t mem_rsp,
 
-    output takefive_pkg::fetch_t   fetch,
+    output takefive_pkg::f2d_t   f2d,
 
     input  takefive_pkg::nxt_pc_t  nxt_pc,
 
@@ -31,8 +31,8 @@ module fetch #(
     assign mem_req.wen  = 1'b0;
     assign mem_req.data = 32'b0;
 
-    assign fetch.vld  = !rst && (!DEBUG_EN || !dbg_pause);
-    assign fetch.pc   = pc;
-    assign fetch.inst = mem_rsp.data;
+    assign f2d.vld  = !rst && (!DEBUG_EN || !dbg_pause);
+    assign f2d.pc   = pc;
+    assign f2d.inst = mem_rsp.data;
 
 endmodule

@@ -22,11 +22,8 @@ module core #(
     input  logic [31:0]            dbg_rf_data
 );
 
-    takefive_pkg::fetch_t  f;
-    logic [31:0]           d_pc;
-    takefive_pkg::inst_t   d_inst;
-    takefive_pkg::rvals_t  rvals;
-    takefive_pkg::rfwb_t   rfwb;
+    // ---------------- Fetch ----------------
+    takefive_pkg::f2d_t    f2d;
     takefive_pkg::nxt_pc_t nxt_pc;
 
     fetch #(.DEBUG_EN(DEBUG_EN)) u_fetch(
@@ -34,60 +31,66 @@ module core #(
         .rst       (rst      ),
         .mem_req   (imem_req ),
         .mem_rsp   (imem_rsp ),
-        .fetch     (f        ),
+        .f2d       (f2d      ),
         .nxt_pc    (nxt_pc   ),
         .dbg_pause (dbg_pause)
     );
 
+    // ---------------- Decode ----------------
+    takefive_pkg::d2r_t d2r;
+
     dec u_dec(
-        .fetch  (f     ),
-        .d_pc   (d_pc  ),
-        .d_inst (d_inst)
+        .f2d (f2d),
+        .d2r (d2r)
     );
 
+    // ---------------- Debug ----------------
     logic [4:0] rf_rs2;
-    takefive_pkg::rfwb_t rf_rfwb;
+    takefive_pkg::rfwb_t rfwb, rfwb_mux;
     always_comb begin
         if (DEBUG_EN && dbg_pause) begin
-            rf_rs2        = dbg_rs;
-            rf_rfwb.rd    = dbg_rf_rd;
-            rf_rfwb.wen   = dbg_rf_wr;
-            rf_rfwb.wdata = dbg_rf_data;
+            rf_rs2         = dbg_rs;
+            rfwb_mux.rd    = dbg_rf_rd;
+            rfwb_mux.wen   = dbg_rf_wr;
+            rfwb_mux.wdata = dbg_rf_data;
         end else begin
-            rf_rs2  = d_inst.rs2;
-            rf_rfwb = rfwb;
+            rf_rs2   = d2r.inst.rs2;
+            rfwb_mux = rfwb;
         end
     end
 
+    takefive_pkg::rvals_t rvals;
     assign dbg_rval = rvals.rval2;
-    assign dbg_pc   = f.pc;
+    assign dbg_pc   = f2d.pc;
 
+    // ---------------- RegFile ----------------
     rf u_rf(
-        .clk   (clk       ),
-        .rs1   (d_inst.rs1),
-        .rs2   (rf_rs2    ),
-        .rvals (rvals     ),
-        .rfwb  (rf_rfwb   )
+        .clk   (clk         ),
+        .rs1   (d2r.inst.rs1),
+        .rs2   (rf_rs2      ),
+        .rvals (rvals        ),
+        .rfwb  (rfwb_mux     )
+    );
+
+    // ---------------- Exec ----------------
+    takefive_pkg::r2e_t r2e;
+    assign r2e.pc    = d2r.pc;
+    assign r2e.inst  = d2r.inst;
+    assign r2e.rvals = rvals;
+
+    mem u_mem(
+        .r2e     (r2e     ),
+        .mem_req (dmem_req)
     );
 
     exe u_exe(
-        .pc       (d_pc    ),
-        .inst     (d_inst  ),
-        .rvals    (rvals   ),
+        .r2e      (r2e     ),
         .dmem_rsp (dmem_rsp),
         .rfwb     (rfwb    )
     );
 
-    mem u_mem(
-        .inst    (d_inst  ),
-        .rvals   (rvals   ),
-        .mem_req (dmem_req)
-    );
-
     branch u_branch(
-        .pc     (d_pc  ),
-        .inst   (d_inst),
-        .rvals  (rvals ),
+        .r2e    (r2e   ),
         .nxt_pc (nxt_pc)
     );
 
