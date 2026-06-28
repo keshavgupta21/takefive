@@ -665,6 +665,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
                                                 short_prog ? 10 : 64);
 
     CoreRef ref(depth);
+    CoreRef::Stats total = {};
     std::uniform_int_distribution<uint32_t> val_dist;
     std::vector<uint32_t> prog(depth);
 
@@ -742,9 +743,32 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
             dump_program(prog, depth);
             return report(name, 1, r + 1);
         }
+
+        auto &s = ref.stats();
+        total.cycles             += s.cycles;
+        total.valid              += s.valid;
+        total.alu                += s.alu;
+        total.branches_taken     += s.branches_taken;
+        total.branches_not_taken += s.branches_not_taken;
+        total.jumps              += s.jumps;
+        total.lui_auipc          += s.lui_auipc;
+        total.loads              += s.loads;
+        total.stores             += s.stores;
+        total.rf_writes          += s.rf_writes;
     }
 
-    return report(name, 0, n_rounds);
+    int rc = report(name, 0, n_rounds);
+    std::cout << "  cycles:              " << total.cycles << "\n"
+              << "  valid:               " << total.valid << "\n"
+              << "  alu:                 " << total.alu << "\n"
+              << "  branches_taken:      " << total.branches_taken << "\n"
+              << "  branches_not_taken:  " << total.branches_not_taken << "\n"
+              << "  jumps:               " << total.jumps << "\n"
+              << "  lui_auipc:           " << total.lui_auipc << "\n"
+              << "  loads:               " << total.loads << "\n"
+              << "  stores:              " << total.stores << "\n"
+              << "  rf_writes:           " << total.rf_writes << "\n";
+    return rc;
 }
 
 int main(int argc, char **argv) {
