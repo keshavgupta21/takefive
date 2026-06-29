@@ -4,9 +4,9 @@ module core (
     input  logic                       clk,
     input  logic                       rst,
 
-    output takefive_pkg::mem_req_t     imem_req,
-    input  takefive_pkg::mem_rsp_t     imem_rsp,
-    input  logic                       imem_rdy,
+    output takefive_pkg::dram_req_t    imem_dram_req,
+    input  takefive_pkg::dram_rsp_t    imem_dram_rsp,
+    input  logic                       imem_dram_rdy,
 
     output takefive_pkg::mem_req_t     dmem_req,
     input  takefive_pkg::mem_rsp_t     dmem_rsp,
@@ -22,9 +22,25 @@ module core (
     output logic                       dbg_pipe_busy
 );
 
+    // ---------------- Caches ----------------
+
+    takefive_pkg::mem_req_t imem_req;
+    takefive_pkg::mem_rsp_t imem_rsp;
+    logic                   imem_rdy;
+
+    icache u_icache(
+        .clk      (clk           ),
+        .rst      (rst           ),
+        .mem_req  (imem_req      ),
+        .mem_rsp  (imem_rsp      ),
+        .mem_rdy  (imem_rdy      ),
+        .dram_req (imem_dram_req ),
+        .dram_rsp (imem_dram_rsp ),
+        .dram_rdy (imem_dram_rdy )
+    );
+
     //         --- PIPELINE STAGE 1 ---
     // ---------------- Fetch ----------------
-    // (fetch output is flopped)
     takefive_pkg::f2d_t    f2d;
     takefive_pkg::annul_t annul;
 

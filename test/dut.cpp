@@ -381,3 +381,74 @@ bool CoreDut::commit() {
 bool CoreDut::pipe_busy() {
     return model_->dbg_pipe_busy;
 }
+
+// ---- ICacheDut ----
+
+ICacheDut::ICacheDut() : model_(new Vicache_wrap) {
+    model_->clk          = 0;
+    model_->rst          = 1;
+    model_->dbg_pause    = 0;
+    model_->wr_addr      = 0;
+    model_->wr_data      = 0;
+    model_->wr_en        = 0;
+    model_->mem_req_vld  = 0;
+    model_->mem_req_addr = 0;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) {
+        model_->trace(g_trace, 99);
+        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
+    }
+#endif
+}
+
+ICacheDut::~ICacheDut() {
+    model_->final();
+    delete model_;
+}
+
+void ICacheDut::tick() {
+    model_->clk = 0;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
+    model_->clk = 1;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
+}
+
+void ICacheDut::eval() {
+    model_->eval();
+}
+
+void ICacheDut::set_rst(bool r) {
+    model_->rst = r;
+}
+
+void ICacheDut::write(uint32_t addr, uint32_t data) {
+    model_->dbg_pause = 1;
+    model_->wr_en     = 1;
+    model_->wr_addr   = addr;
+    model_->wr_data   = data;
+    model_->eval();
+}
+
+void ICacheDut::clear_write() {
+    model_->dbg_pause = 0;
+    model_->wr_en     = 0;
+    model_->eval();
+}
+
+void ICacheDut::set_req(uint32_t addr) {
+    model_->mem_req_vld  = 1;
+    model_->mem_req_addr = addr;
+    model_->eval();
+}
+
+bool     ICacheDut::rsp_vld()  const { return model_->mem_rsp_vld;  }
+uint32_t ICacheDut::rsp_data() const { return model_->mem_rsp_data; }
+uint32_t ICacheDut::rsp_addr() const { return model_->mem_rsp_addr; }
+bool     ICacheDut::rdy()      const { return model_->mem_rdy;      }

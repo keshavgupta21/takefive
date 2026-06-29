@@ -1,11 +1,8 @@
 `include "common.svh"
 
 package takefive_pkg;
-    typedef struct packed {
-        logic        vld;
-        logic [31:0] pc;
-        logic [31:0] inst;
-    } f2d_t;
+
+    // ---------------- Instruction Encoding ----------------
 
     typedef enum logic [6:0] {
         OPC_LOAD   = 7'b0000011,
@@ -54,6 +51,8 @@ package takefive_pkg;
         F7_ALT  = 7'b0100000
     } f7_t;
 
+    // ---------------- Processor Types ----------------
+
     typedef struct packed {
         opc_t        opc;
         logic [4:0]  rd;
@@ -76,6 +75,18 @@ package takefive_pkg;
     } rf_rd_rsp_t;
 
     typedef struct packed {
+        logic [4:0]  rd;
+        logic        wen;
+        logic [31:0] wdata;
+    } rf_wr_req_t;
+
+    typedef struct packed {
+        logic        vld;
+        logic [31:0] pc;
+        logic [31:0] inst;
+    } f2d_t;
+
+    typedef struct packed {
         logic        vld;
         logic [31:0] pc;
         inst_t       inst;
@@ -85,22 +96,16 @@ package takefive_pkg;
         logic        vld;
         logic [31:0] pc;
         inst_t       inst;
-        rf_rd_rsp_t      rvals;
+        rf_rd_rsp_t  rvals;
     } r2e_t;
 
     typedef struct packed {
         logic        vld;
         logic [31:0] pc;
         inst_t       inst;
-        rf_rd_rsp_t      rvals;
+        rf_rd_rsp_t  rvals;
         logic [31:0] alu_out;
     } e2w_t;
-
-    typedef struct packed {
-        logic [4:0]  rd;
-        logic        wen;
-        logic [31:0] wdata;
-    } rf_wr_req_t;
 
     typedef struct packed {
         logic        annul;
@@ -120,5 +125,37 @@ package takefive_pkg;
         logic [31:0] addr;
         logic [31:0] data;
     } mem_rsp_t;
+
+    // ---------------- Cache Types ----------------
+
+    parameter CL_WORDS    = 16;
+    parameter CACHE_DEPTH = 64;
+    parameter CL_BITS     = $clog2(CL_WORDS);
+    parameter IDX_BITS    = $clog2(CACHE_DEPTH);
+    parameter TAG_BITS    = 32 - IDX_BITS - CL_BITS - 2;
+
+    typedef struct packed {
+        logic [TAG_BITS-1:0] tag;
+        logic [IDX_BITS-1:0] idx;
+        logic [CL_BITS-1:0]  wo;
+        logic [1:0]          bo;
+    } addr_t;
+
+    typedef struct packed {
+        logic [TAG_BITS-1:0]       tag;
+        logic [CL_WORDS-1:0][31:0] words;
+    } cacheline_t;
+
+    typedef struct packed {
+        logic                      vld;
+        logic [31:0]               addr;
+        logic                      wen;
+        logic [CL_WORDS-1:0][31:0] data;
+    } dram_req_t;
+
+    typedef struct packed {
+        logic                      vld;
+        logic [CL_WORDS-1:0][31:0] data;
+    } dram_rsp_t;
 
 endpackage

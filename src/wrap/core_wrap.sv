@@ -26,14 +26,13 @@ module core_wrap #(
     input  logic [31:0] dbg_rf_wr_data
 );
 
-    takefive_pkg::mem_req_t imem_req;
-    takefive_pkg::mem_rsp_t imem_rsp;
+    takefive_pkg::dram_req_t imem_dram_req;
+    takefive_pkg::dram_rsp_t imem_dram_rsp;
+    logic                    imem_dram_rdy;
 
     takefive_pkg::mem_req_t dmem_req;
     takefive_pkg::mem_rsp_t dmem_rsp;
-
-    logic imem_rdy;
-    logic dmem_rdy;
+    logic                   dmem_rdy;
 
     takefive_pkg::rf_rd_req_t rf_rd_req;
     takefive_pkg::rf_rd_rsp_t rf_rd_rsp;
@@ -42,9 +41,9 @@ module core_wrap #(
     core u_core(
         .clk           (clk           ),
         .rst           (rst           ),
-        .imem_req      (imem_req      ),
-        .imem_rsp      (imem_rsp      ),
-        .imem_rdy      (imem_rdy      ),
+        .imem_dram_req (imem_dram_req ),
+        .imem_dram_rsp (imem_dram_rsp ),
+        .imem_dram_rdy (imem_dram_rdy ),
         .dmem_req      (dmem_req      ),
         .dmem_rsp      (dmem_rsp      ),
         .dmem_rdy      (dmem_rdy      ),
@@ -84,14 +83,14 @@ module core_wrap #(
     assign dmem_dbg_req.wen  = dmem_wr_en;
     assign dmem_dbg_req.data = dmem_wr_data;
 
-    delay_mem #(.DEPTH(DEPTH)) u_imem(
-        .clk       (clk          ),
-        .rst       (rst          ),
-        .dbg_pause (dbg_pause    ),
-        .dbg_req   (imem_dbg_req ),
-        .mem_req   (imem_req     ),
-        .mem_rsp   (imem_rsp     ),
-        .mem_rdy   (imem_rdy     )
+    dram_mem #(.DEPTH(DEPTH)) u_imem(
+        .clk       (clk           ),
+        .rst       (rst           ),
+        .dbg_pause (dbg_pause     ),
+        .dbg_req   (imem_dbg_req  ),
+        .dram_req  (imem_dram_req ),
+        .dram_rsp  (imem_dram_rsp ),
+        .dram_rdy  (imem_dram_rdy )
     );
 
     delay_mem #(.DEPTH(DEPTH)) u_dmem(

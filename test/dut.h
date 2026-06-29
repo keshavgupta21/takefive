@@ -7,6 +7,7 @@
 #include "Vmem_wrap.h"
 #include "Vfetch_wrap.h"
 #include "Vcore_wrap.h"
+#include "Vicache_wrap.h"
 #include "ref.h"
 
 #ifdef WAVES
@@ -101,4 +102,23 @@ public:
 
 private:
     Vcore_wrap *model_;
+};
+
+class ICacheDut {
+public:
+    ICacheDut();
+    ~ICacheDut();
+    void tick();
+    void eval();
+    void set_rst(bool r);
+    void write(uint32_t addr, uint32_t data);
+    void clear_write();
+    void set_req(uint32_t addr);
+    bool rsp_vld() const;
+    uint32_t rsp_data() const;
+    uint32_t rsp_addr() const;
+    bool rdy() const;
+
+private:
+    Vicache_wrap *model_;
 };

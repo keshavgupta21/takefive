@@ -46,8 +46,9 @@ RTL sources and the top module are defined in `config.json`:
 ```
 
 ## TODOs
-- Check how the RF gets synthesized (make sure it is using a DistRAM primitive), check how imem and dmem memory gets synthesized
 - Add Vivado synthesis + sta scripts or figure out how to perform STA with yosys.
 - Make tests such that they take random simple programs written in C, compile them to riscv asm and then check the regfile.
 - Consider skid-style pipeline regs to make pipeline slightly more efficient for CPI
 - Make caches to interface with dram, model dram, insert in wrapper
+- Check how the RF and cache mems are getting synthesized.
+- Make DRAM depth 1024 or larger so that the cache doesn't cover it entirely.
