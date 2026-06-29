@@ -1,6 +1,6 @@
 {
-    "sim_top": ["dec_wrap", "exe_wrap", "mem_wrap", "branch_wrap", "fetch_wrap", "core_wrap", "icache_wrap"],
-    "syn_top": ["dec", "alu", "wb", "branch", "mem", "bypass", "fetch", "core", "icache", "syn_rf", "core_top"],
+    "sim_top": ["dec_wrap", "exe_wrap", "mem_wrap", "branch_wrap", "fetch_wrap", "core_wrap", "icache_wrap", "dcache_wrap"],
+    "syn_top": ["dec", "alu", "wb", "branch", "mem", "bypass", "fetch", "core", "icache", "dcache", "syn_rf", "core_top"],
     "sources": [
         "src/takefive_pkg.sv",
         "src/rtl/dec.sv",
@@ -12,6 +12,7 @@
         "src/rtl/fetch.sv",
         "src/rtl/core.sv",
         "src/rtl/icache.sv",
+        "src/rtl/dcache.sv",
         "src/rtl/ram.sv",
         "src/syn/syn_rf.sv",
         "src/syn/core_top.sv",
@@ -24,6 +25,7 @@
         "src/wrap/branch_wrap.sv",
         "src/wrap/fetch_wrap.sv",
         "src/wrap/core_wrap.sv",
-        "src/wrap/icache_wrap.sv"
+        "src/wrap/icache_wrap.sv",
+        "src/wrap/dcache_wrap.sv"
     ]
 }

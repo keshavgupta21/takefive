@@ -8,9 +8,9 @@ module core (
     input  takefive_pkg::dram_rsp_t    imem_dram_rsp,
     input  logic                       imem_dram_rdy,
 
-    output takefive_pkg::mem_req_t     dmem_req,
-    input  takefive_pkg::mem_rsp_t     dmem_rsp,
-    input  logic                       dmem_rdy,
+    output takefive_pkg::dram_req_t    dmem_dram_req,
+    input  takefive_pkg::dram_rsp_t    dmem_dram_rsp,
+    input  logic                       dmem_dram_rdy,
 
     output takefive_pkg::rf_rd_req_t   rf_rd_req,
     input  takefive_pkg::rf_rd_rsp_t   rf_rd_rsp,
@@ -37,6 +37,21 @@ module core (
         .dram_req (imem_dram_req ),
         .dram_rsp (imem_dram_rsp ),
         .dram_rdy (imem_dram_rdy )
+    );
+
+    takefive_pkg::mem_req_t dmem_req;
+    takefive_pkg::mem_rsp_t dmem_rsp;
+    logic                   dmem_rdy;
+
+    dcache u_dcache(
+        .clk      (clk           ),
+        .rst      (rst           ),
+        .mem_req  (dmem_req      ),
+        .mem_rsp  (dmem_rsp      ),
+        .mem_rdy  (dmem_rdy      ),
+        .dram_req (dmem_dram_req ),
+        .dram_rsp (dmem_dram_rsp ),
+        .dram_rdy (dmem_dram_rdy )
     );
 
     //         --- PIPELINE STAGE 1 ---

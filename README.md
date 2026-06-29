@@ -46,9 +46,9 @@ RTL sources and the top module are defined in `config.json`:
 ```
 
 ## TODOs
-- Add Vivado synthesis + sta scripts or figure out how to perform STA with yosys.
+- Add Vivado synthesis + sta + util scripts or figure out how to perform STA with yosys.
 - Make tests such that they take random simple programs written in C, compile them to riscv asm and then check the regfile.
 - Consider skid-style pipeline regs to make pipeline slightly more efficient for CPI
-- Make caches to interface with dram, model dram, insert in wrapper
-- Check how the RF and cache mems are getting synthesized.
-- Remove extra signals such as dram_inst_req.data since they will be unused and unnecessary?
+- Check how the RF and cache mems are getting synthesized. I have a feeling we have a really long path in the dcache req -> hit -> write path.
+- Remove extra signals from core_top such as dram_inst_req.data since they will be unused and unnecessary?
+- Figure out why the CPI is so bad - I think it's just because we're randomly jumping around too much.

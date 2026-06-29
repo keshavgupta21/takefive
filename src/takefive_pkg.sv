@@ -142,6 +142,7 @@ package takefive_pkg;
     } addr_t;
 
     typedef struct packed {
+        logic                      dirty;
         logic [TAG_BITS-1:0]       tag;
         logic [CL_WORDS-1:0][31:0] words;
     } cacheline_t;

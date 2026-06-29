@@ -18,12 +18,12 @@ module icache(
     localparam IDX_BITS    = takefive_pkg::IDX_BITS;
     localparam CL_BITS     = takefive_pkg::CL_BITS;
     localparam TAG_BITS    = takefive_pkg::TAG_BITS;
-    localparam CL_WIDTH    = TAG_BITS + CL_WORDS * 32;
+    localparam CL_WIDTH    = $bits(takefive_pkg::cacheline_t);
 
     typedef enum logic [1:0] { REQ, WAIT, FILL } state_t;
 
-    state_t                   state;
-    takefive_pkg::addr_t      lat_addr;
+    state_t              state;
+    takefive_pkg::addr_t lat_addr;
 
     takefive_pkg::addr_t addr;
     assign addr.tag = mem_req.addr[31:IDX_BITS+CL_BITS+2];
@@ -38,9 +38,12 @@ module icache(
     logic [IDX_BITS-1:0]    cache_mem_wa;
     logic [CL_WIDTH-1:0]    cache_mem_wd;
     logic [CL_WIDTH-1:0]    cache_mem_rd;
-    assign cache_mem_we = (state == FILL) && dram_rsp.vld;
-    assign cache_mem_wa = lat_addr.idx;
-    assign cache_mem_wd = {lat_addr.tag, dram_rsp.data};
+
+    takefive_pkg::cacheline_t fill_line;
+    assign fill_line.dirty = 1'b0;
+    assign fill_line.tag   = lat_addr.tag;
+    assign fill_line.words = dram_rsp.data;
+    assign cache_mem_wd    = fill_line;
 
     ram #(.WIDTH(CL_WIDTH), .DEPTH(CACHE_DEPTH)) u_cache_mem(
         .clk  (clk          ),
@@ -56,6 +59,9 @@ module icache(
 
     logic cache_hit;
     assign cache_hit = cache_mem_vld[addr.idx] && (line.tag == addr.tag);
+
+    assign cache_mem_we = (state == FILL) && dram_rsp.vld;
+    assign cache_mem_wa = lat_addr.idx;
 
     // ---------------- DRAM Request ----------------
 

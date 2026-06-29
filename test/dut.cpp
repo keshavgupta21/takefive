@@ -452,3 +452,78 @@ bool     ICacheDut::rsp_vld()  const { return model_->mem_rsp_vld;  }
 uint32_t ICacheDut::rsp_data() const { return model_->mem_rsp_data; }
 uint32_t ICacheDut::rsp_addr() const { return model_->mem_rsp_addr; }
 bool     ICacheDut::rdy()      const { return model_->mem_rdy;      }
+
+// ---- DCacheDut ----
+
+DCacheDut::DCacheDut() : model_(new Vdcache_wrap) {
+    model_->clk          = 0;
+    model_->rst          = 1;
+    model_->dbg_pause    = 0;
+    model_->wr_addr      = 0;
+    model_->wr_data      = 0;
+    model_->wr_en        = 0;
+    model_->mem_req_vld  = 0;
+    model_->mem_req_addr = 0;
+    model_->mem_req_wen  = 0;
+    model_->mem_req_data = 0;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) {
+        model_->trace(g_trace, 99);
+        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
+    }
+#endif
+}
+
+DCacheDut::~DCacheDut() {
+    model_->final();
+    delete model_;
+}
+
+void DCacheDut::tick() {
+    model_->clk = 0;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
+    model_->clk = 1;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
+}
+
+void DCacheDut::eval() {
+    model_->eval();
+}
+
+void DCacheDut::set_rst(bool r) {
+    model_->rst = r;
+}
+
+void DCacheDut::write(uint32_t addr, uint32_t data) {
+    model_->dbg_pause = 1;
+    model_->wr_en     = 1;
+    model_->wr_addr   = addr;
+    model_->wr_data   = data;
+    model_->eval();
+}
+
+void DCacheDut::clear_write() {
+    model_->dbg_pause = 0;
+    model_->wr_en     = 0;
+    model_->eval();
+}
+
+void DCacheDut::set_req(uint32_t addr, bool wen, uint32_t data) {
+    model_->mem_req_vld  = 1;
+    model_->mem_req_addr = addr;
+    model_->mem_req_wen  = wen;
+    model_->mem_req_data = data;
+    model_->eval();
+}
+
+bool     DCacheDut::rsp_vld()  const { return model_->mem_rsp_vld;  }
+uint32_t DCacheDut::rsp_data() const { return model_->mem_rsp_data; }
+uint32_t DCacheDut::rsp_addr() const { return model_->mem_rsp_addr; }
+bool     DCacheDut::rdy()      const { return model_->mem_rdy;      }

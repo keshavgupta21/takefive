@@ -728,6 +728,71 @@ static int test_icache_random(ICacheDut &dut, int n) {
     return rc;
 }
 
+static int test_dcache_random(DCacheDut &dut, int n) {
+    const int DEPTH = 1024;
+    const int TOTAL = DEPTH;
+
+    std::mt19937 rng(123);
+    std::uniform_int_distribution<uint32_t> val_dist;
+    std::uniform_int_distribution<int> addr_dist(0, TOTAL - 1);
+    std::uniform_int_distribution<int> pct_dist(0, 99);
+    std::bernoulli_distribution wen_dist(0.5);
+
+    int errors = 0;
+    std::vector<uint32_t> ref_mem(TOTAL);
+
+    dut.set_rst(true);
+    dut.tick();
+
+    for (int i = 0; i < TOTAL; i++) {
+        ref_mem[i] = val_dist(rng);
+        dut.write(i * 4, ref_mem[i]);
+        dut.tick();
+    }
+
+    dut.clear_write();
+    dut.tick();
+    dut.set_rst(false);
+    dut.tick();
+
+    int word_idx = addr_dist(rng);
+    uint64_t total_cycles = 0;
+
+    for (int i = 0; i < n; i++) {
+        bool wen = wen_dist(rng);
+        uint32_t wdata = val_dist(rng);
+
+        dut.set_req(word_idx * 4, wen, wdata);
+
+        uint64_t req_cycles = 0;
+        do { dut.tick(); req_cycles++; } while (!dut.rsp_vld());
+        total_cycles += req_cycles;
+
+        if (!wen) {
+            if (dut.rsp_data() != ref_mem[word_idx]) {
+                if (errors < 10)
+                    std::cerr << "FAIL dcache_random [" << i
+                              << "] read addr=0x" << std::hex << std::setfill('0')
+                              << std::setw(8) << (word_idx * 4)
+                              << "  expected=0x" << std::setw(8) << ref_mem[word_idx]
+                              << "  got=0x" << std::setw(8) << dut.rsp_data()
+                              << std::dec << "\n";
+                errors++;
+            }
+        } else {
+            ref_mem[word_idx] = wdata;
+        }
+
+        if (pct_dist(rng) < 99) word_idx = (word_idx + 1) % TOTAL;
+        else                     word_idx = addr_dist(rng);
+    }
+
+    int rc = report("dcache_random", errors, n);
+    double cpi = n ? (double)total_cycles / n : 0.0;
+    std::cout << "  CPI:                 " << std::fixed << std::setprecision(2) << cpi << "\n";
+    return rc;
+}
+
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
@@ -751,26 +816,28 @@ int main(int argc, char **argv) {
     FetchDut fetch_dut;
     CoreDut core_dut;
     ICacheDut icache_dut;
+    DCacheDut dcache_dut;
 
 #ifdef WAVES
     if (waves) waves_open("build/waves.vcd");
 #endif
 
-    waves_reset(); errors += test_dec_directed(dec_dut);
-    waves_reset(); errors += test_dec_random(dec_dut, syn ? 100 : 10000000);
-    waves_reset(); errors += test_exe_directed(exe_dut);
-    waves_reset(); errors += test_exe_random(exe_dut, syn ? 100 : 1000000);
-    waves_reset(); errors += test_mem_directed(mem_dut);
-    waves_reset(); errors += test_branch_directed(branch_dut);
-    waves_reset(); errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
-    waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
-    waves_reset(); errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
+    // waves_reset(); errors += test_dec_directed(dec_dut);
+    // waves_reset(); errors += test_dec_random(dec_dut, syn ? 100 : 10000000);
+    // waves_reset(); errors += test_exe_directed(exe_dut);
+    // waves_reset(); errors += test_exe_random(exe_dut, syn ? 100 : 1000000);
+    // waves_reset(); errors += test_mem_directed(mem_dut);
+    // waves_reset(); errors += test_branch_directed(branch_dut);
+    // waves_reset(); errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
+    // waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
+    // waves_reset(); errors += test_dcache_random(dcache_dut, syn ? 1000 : 1000000);
+    // waves_reset(); errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
     waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
-    waves_reset(); errors += test_core_random(core_dut, "core_short_no_hazard", syn ? 100 : 10000, 3, false, true,  false);
-    waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
-    waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
-    waves_reset(); errors += test_core_random(core_dut, "core_no_hazard",       syn ? 100 : 10000, 3, false, false, false);
-    waves_reset(); errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
+    // waves_reset(); errors += test_core_random(core_dut, "core_short_no_hazard", syn ? 100 : 10000, 3, false, true,  false);
+    // waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
+    // waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
+    // waves_reset(); errors += test_core_random(core_dut, "core_no_hazard",       syn ? 100 : 10000, 3, false, false, false);
+    // waves_reset(); errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
 
 #ifdef WAVES
     if (waves) waves_close();

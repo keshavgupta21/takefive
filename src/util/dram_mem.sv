@@ -52,8 +52,8 @@ module dram_mem #(
             lat_idx  <= '0;
         end else if (busy) begin
             if (dly_cnt == 5'd1) begin
-                dram_rsp.vld <= 1;
-                busy    <= 0;
+                dram_rsp.vld <= !lat_wen;
+                busy         <= 0;
             end else begin
                 dram_rsp.vld <= 0;
                 dly_cnt <= dly_cnt - 1;

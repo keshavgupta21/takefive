@@ -30,9 +30,9 @@ module core_wrap #(
     takefive_pkg::dram_rsp_t imem_dram_rsp;
     logic                    imem_dram_rdy;
 
-    takefive_pkg::mem_req_t dmem_req;
-    takefive_pkg::mem_rsp_t dmem_rsp;
-    logic                   dmem_rdy;
+    takefive_pkg::dram_req_t dmem_dram_req;
+    takefive_pkg::dram_rsp_t dmem_dram_rsp;
+    logic                    dmem_dram_rdy;
 
     takefive_pkg::rf_rd_req_t rf_rd_req;
     takefive_pkg::rf_rd_rsp_t rf_rd_rsp;
@@ -44,9 +44,9 @@ module core_wrap #(
         .imem_dram_req (imem_dram_req ),
         .imem_dram_rsp (imem_dram_rsp ),
         .imem_dram_rdy (imem_dram_rdy ),
-        .dmem_req      (dmem_req      ),
-        .dmem_rsp      (dmem_rsp      ),
-        .dmem_rdy      (dmem_rdy      ),
+        .dmem_dram_req (dmem_dram_req ),
+        .dmem_dram_rsp (dmem_dram_rsp ),
+        .dmem_dram_rdy (dmem_dram_rdy ),
         .rf_rd_req     (rf_rd_req     ),
         .rf_rd_rsp     (rf_rd_rsp     ),
         .rf_wr_req     (rf_wr_req     ),
@@ -93,14 +93,14 @@ module core_wrap #(
         .dram_rdy  (imem_dram_rdy )
     );
 
-    delay_mem #(.DEPTH(1024)) u_dmem(
-        .clk       (clk          ),
-        .rst       (rst          ),
-        .dbg_pause (dbg_pause    ),
-        .dbg_req   (dmem_dbg_req ),
-        .mem_req   (dmem_req     ),
-        .mem_rsp   (dmem_rsp     ),
-        .mem_rdy   (dmem_rdy     )
+    dram_mem #(.DEPTH(1024)) u_dmem(
+        .clk       (clk           ),
+        .rst       (rst           ),
+        .dbg_pause (dbg_pause     ),
+        .dbg_req   (dmem_dbg_req  ),
+        .dram_req  (dmem_dram_req ),
+        .dram_rsp  (dmem_dram_rsp ),
+        .dram_rdy  (dmem_dram_rdy )
     );
 
 endmodule
