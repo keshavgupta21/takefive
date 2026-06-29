@@ -129,7 +129,7 @@ package takefive_pkg;
     // ---------------- Cache Types ----------------
 
     parameter CL_WORDS    = 16;
-    parameter CACHE_DEPTH = 64;
+    parameter CACHE_DEPTH = 16;
     parameter CL_BITS     = $clog2(CL_WORDS);
     parameter IDX_BITS    = $clog2(CACHE_DEPTH);
     parameter TAG_BITS    = 32 - IDX_BITS - CL_BITS - 2;

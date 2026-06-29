@@ -83,7 +83,7 @@ module core_wrap #(
     assign dmem_dbg_req.wen  = dmem_wr_en;
     assign dmem_dbg_req.data = dmem_wr_data;
 
-    dram_mem #(.DEPTH(DEPTH)) u_imem(
+    dram_mem #(.DEPTH(1024)) u_imem(
         .clk       (clk           ),
         .rst       (rst           ),
         .dbg_pause (dbg_pause     ),
@@ -93,7 +93,7 @@ module core_wrap #(
         .dram_rdy  (imem_dram_rdy )
     );
 
-    delay_mem #(.DEPTH(DEPTH)) u_dmem(
+    delay_mem #(.DEPTH(1024)) u_dmem(
         .clk       (clk          ),
         .rst       (rst          ),
         .dbg_pause (dbg_pause    ),

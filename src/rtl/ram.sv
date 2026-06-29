@@ -1,6 +1,7 @@
 `include "common.svh"
 
 // DistRAM instantiation template from Xilinx
+// https://docs.amd.com/r/en-US/ug901-vivado-synthesis/Distributed-RAM-Examples
 module ram #(
     parameter WIDTH = 16,
     parameter DEPTH = 64

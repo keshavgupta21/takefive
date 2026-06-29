@@ -25,10 +25,14 @@ module delay_mem #(
     logic [AWIDTH-1:0] lat_idx;
     logic [31:0]       lat_addr;
 
-    wire [AWIDTH-1:0] idx     = mem_req.addr[AWIDTH+1:2];
-    wire [AWIDTH-1:0] dbg_idx = dbg_req.addr[AWIDTH+1:2];
-    wire [AWIDTH-1:0] ram_idx = busy ? lat_idx : idx;
-    wire              accept  = mem_req.vld && !busy;
+    logic [AWIDTH-1:0] idx;
+    logic [AWIDTH-1:0] dbg_idx;
+    logic [AWIDTH-1:0] ram_idx;
+    logic              accept;
+    assign idx     = mem_req.addr[AWIDTH+1:2];
+    assign dbg_idx = dbg_req.addr[AWIDTH+1:2];
+    assign ram_idx = busy ? lat_idx : idx;
+    assign accept  = mem_req.vld && !busy;
 
     always_ff @(posedge clk) begin
         if (accept && mem_req.wen)       ram[ram_idx] <= mem_req.data;

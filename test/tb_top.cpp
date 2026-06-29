@@ -517,13 +517,19 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
     return report("fetch_random", errors, n_rounds);
 }
 
-static void dump_pc_trace(const std::vector<uint32_t> &pcs) {
+static void dump_pc_trace(const std::vector<uint32_t> &pcs,
+                          const std::vector<uint32_t> &prog, int depth) {
+    uint32_t addr_mask = (depth * 4) - 1;
     std::cerr << "--- Expected PC trace (" << pcs.size() << " instructions) ---\n";
-    for (size_t i = 0; i < pcs.size(); i++)
-        std::cerr << "  [" << i << "] 0x" << std::hex << std::setfill('0')
+    for (size_t i = 0; i < pcs.size(); i++) {
+        uint32_t eff = pcs[i] & addr_mask;
+        int word_idx = eff / 4;
+        Decoded d = decode(prog[word_idx]);
+        std::cerr << "  [" << i << "] pc=0x" << std::hex << std::setfill('0')
                   << std::setw(8) << pcs[i]
-                  << " (" << std::setw(2) << (pcs[i] & 0xFF) << ")"
-                  << std::dec << "\n";
+                  << " eff=0x" << std::setw(4) << eff
+                  << "  " << std::dec << disasm(d) << "\n";
+    }
     std::cerr << "---\n";
 }
 
@@ -542,10 +548,10 @@ static void dump_program(const std::vector<uint32_t> &prog, int depth) {
 static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
                             int hazard_dist, bool no_branches,
                             bool short_prog = false, bool no_mem = false) {
-    const int depth = 64;
+    const int depth = 1024;
     std::mt19937 rng(200);
     std::uniform_int_distribution<int> len_dist(short_prog ? 5 : 32,
-                                                short_prog ? 10 : 64);
+                                                short_prog ? 10 : 1024);
 
     CoreRef ref(depth);
     CoreRef::Stats total = {};
@@ -554,6 +560,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
     std::vector<uint32_t> prog(depth);
 
     for (int r = 0; r < n_rounds; r++) {
+        waves_reset();
         int n = len_dist(rng);
 
         dut.set_rst(true);
@@ -590,7 +597,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
         int hw_cycles = 0;
         bool timed_out = false;
         for (; retired < n; hw_cycles++) {
-            if (hw_cycles >= n * 6 + 100) {
+            if (hw_cycles >= n * 100) {
                 std::cerr << "FAIL " << name << " [round=" << r
                           << "] timeout: retired " << retired
                           << " / " << n << " after " << hw_cycles
@@ -604,7 +611,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
         }
 
         if (timed_out) {
-            dump_pc_trace(ref_pcs);
+            dump_pc_trace(ref_pcs, prog, depth);
             dump_program(prog, depth);
             return report(name, 1, r + 1);
         }
@@ -629,7 +636,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
         }
 
         if (round_fail) {
-            dump_pc_trace(ref_pcs);
+            dump_pc_trace(ref_pcs, prog, depth);
             dump_program(prog, depth);
             return report(name, 1, r + 1);
         }
@@ -665,9 +672,8 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
 }
 
 static int test_icache_random(ICacheDut &dut, int n) {
-    const int DEPTH     = 1024;
-    const int CL_WORDS  = 16;
-    const int TOTAL     = DEPTH * CL_WORDS;
+    const int DEPTH = 1024;
+    const int TOTAL = DEPTH;
 
     std::mt19937 rng(99);
     std::uniform_int_distribution<uint32_t> val_dist;
@@ -759,12 +765,12 @@ int main(int argc, char **argv) {
     waves_reset(); errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
     waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
     waves_reset(); errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
-    // waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_short_hazard",    syn ? 100 : 10000, 3, false, true,  false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_hazard",          syn ? 100 : 10000, 3, false, false, false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
+    waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
+    waves_reset(); errors += test_core_random(core_dut, "core_short_no_hazard", syn ? 100 : 10000, 3, false, true,  false);
+    waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
+    waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
+    waves_reset(); errors += test_core_random(core_dut, "core_no_hazard",       syn ? 100 : 10000, 3, false, false, false);
+    waves_reset(); errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
 
 #ifdef WAVES
     if (waves) waves_close();

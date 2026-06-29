@@ -51,4 +51,4 @@ RTL sources and the top module are defined in `config.json`:
 - Consider skid-style pipeline regs to make pipeline slightly more efficient for CPI
 - Make caches to interface with dram, model dram, insert in wrapper
 - Check how the RF and cache mems are getting synthesized.
-- Make DRAM depth 1024 or larger so that the cache doesn't cover it entirely.
+- Remove extra signals such as dram_inst_req.data since they will be unused and unnecessary?
