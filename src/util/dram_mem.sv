@@ -24,48 +24,54 @@ module dram_mem (
     logic [4:0]                 dly_cnt;
     logic                       busy;
     logic                       lat_wen;
+    logic                       lat_oob;
     logic [AWIDTH-1:0]          lat_idx;
     logic [CL_WORDS-1:0][31:0]  lat_data;
 
     logic [AWIDTH-1:0] idx;
     logic [AWIDTH-1:0] dbg_line;
     logic [LWIDTH-1:0] dbg_word;
+    logic              oob;
     logic              accept;
     assign idx      = dram_req.addr[LWIDTH+AWIDTH+1:LWIDTH+2];
     assign dbg_line = dbg_req.addr[LWIDTH+AWIDTH+1:LWIDTH+2];
     assign dbg_word = dbg_req.addr[LWIDTH+1:2];
+    assign oob      = dram_req.vld && (dram_req.addr[31:LWIDTH+AWIDTH+2] != '0);
     assign accept   = dram_req.vld && !busy;
 
     always_ff @(posedge clk) begin
-        if (busy && lat_wen && dly_cnt == 5'd1) ram[lat_idx]            <= lat_data;
-        if (busy && !lat_wen)                   dram_rsp.data                <= ram[lat_idx];
-        if (dbg_req.vld && dbg_req.wen)         ram[dbg_line][dbg_word] <= dbg_req.data;
+        if (busy && lat_wen && dly_cnt == 5'd1 && !lat_oob) ram[lat_idx]            <= lat_data;
+        if (busy && !lat_wen)                                dram_rsp.data            <= lat_oob ? '0 : ram[lat_idx];
+        if (dbg_req.vld && dbg_req.wen)                     ram[dbg_line][dbg_word] <= dbg_req.data;
     end
 
     always_ff @(posedge clk) begin
         if (rst || dbg_pause) begin
-            dly_cnt  <= '0;
-            busy     <= 0;
-            dram_rsp.vld  <= 0;
-            lat_wen  <= 0;
-            lat_idx  <= '0;
+            dly_cnt      <= '0;
+            busy         <= 0;
+            dram_rsp.vld <= 0;
+            lat_wen      <= 0;
+            lat_oob      <= 0;
+            lat_idx      <= '0;
         end else if (busy) begin
             if (dly_cnt == 5'd1) begin
                 dram_rsp.vld <= !lat_wen;
                 busy         <= 0;
             end else begin
                 dram_rsp.vld <= 0;
-                dly_cnt <= dly_cnt - 1;
+                dly_cnt      <= dly_cnt - 1;
             end
         end else if (accept) begin
-            busy     <= 1;
-            dly_cnt  <= 5'd20;
-            lat_idx  <= idx;
-            lat_wen  <= dram_req.wen;
-            lat_data <= dram_req.data;
-            dram_rsp.vld  <= 0;
+            if (oob) $warning("dram_mem: OOB address 0x%08x", dram_req.addr);
+            busy         <= 1;
+            dly_cnt      <= 5'd20;
+            lat_idx      <= idx;
+            lat_wen      <= dram_req.wen;
+            lat_oob      <= oob;
+            lat_data     <= dram_req.data;
+            dram_rsp.vld <= 0;
         end else begin
-            dram_rsp.vld  <= 0;
+            dram_rsp.vld <= 0;
         end
     end
 
