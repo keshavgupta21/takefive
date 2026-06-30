@@ -832,12 +832,12 @@ int main(int argc, char **argv) {
     waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
     waves_reset(); errors += test_dcache_random(dcache_dut, syn ? 1000 : 1000000);
     waves_reset(); errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
-    // waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_short_no_hazard", syn ? 100 : 10000, 3, false, true,  false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_no_hazard",       syn ? 100 : 10000, 3, false, false, false);
-    // waves_reset(); errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
+    waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
+    waves_reset(); errors += test_core_random(core_dut, "core_short_no_hazard", syn ? 100 : 10000, 3, false, true,  false);
+    waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
+    waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
+    waves_reset(); errors += test_core_random(core_dut, "core_no_hazard",       syn ? 100 : 10000, 3, false, false, false);
+    waves_reset(); errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
 
 #ifdef WAVES
     if (waves) waves_close();

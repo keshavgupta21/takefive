@@ -30,9 +30,10 @@ module fetch (
     end
 
     assign mem_req.vld  = mem_rdy && (!dbg_pause);
-    assign mem_req.addr = nxt_pc;
     assign mem_req.wen  = 1'b0;
+    assign mem_req.addr = nxt_pc;
     assign mem_req.data = 32'b0;
+    assign mem_req.uid  = nxt_pc;
 
     logic invalidate_rd;
     always_ff @(posedge clk) begin

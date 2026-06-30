@@ -10,6 +10,7 @@
         "src/rtl/mem.sv",
         "src/rtl/bypass.sv",
         "src/rtl/fetch.sv",
+        "src/rtl/mmu.sv",
         "src/rtl/core.sv",
         "src/rtl/icache.sv",
         "src/rtl/dcache.sv",

@@ -49,8 +49,8 @@ module exe_wrap (
 
     takefive_pkg::mem_rsp_t dmem_rsp;
     assign dmem_rsp.vld  = 1'b1;
-    assign dmem_rsp.addr = 32'b0;
     assign dmem_rsp.data = mem_data;
+    assign dmem_rsp.uid  = '0;
 
     takefive_pkg::rf_wr_req_t rf_wr_req;
 

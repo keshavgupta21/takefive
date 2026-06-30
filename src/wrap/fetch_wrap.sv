@@ -49,9 +49,10 @@ module fetch_wrap (
 
     takefive_pkg::mem_req_t dbg_req;
     assign dbg_req.vld  = wr_en;
-    assign dbg_req.addr = wr_addr;
     assign dbg_req.wen  = wr_en;
+    assign dbg_req.addr = wr_addr;
     assign dbg_req.data = wr_data;
+    assign dbg_req.uid  = '0;
 
     delay_mem u_mem(
         .clk       (clk       ),

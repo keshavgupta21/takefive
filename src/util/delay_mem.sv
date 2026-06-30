@@ -22,7 +22,7 @@ module delay_mem (
     logic [4:0]        dly_cnt;
     logic              busy;
     logic [AWIDTH-1:0] lat_idx;
-    logic [31:0]       lat_addr;
+    logic [31:0]       lat_uid;
 
     logic [AWIDTH-1:0] idx;
     logic [AWIDTH-1:0] dbg_idx;
@@ -41,34 +41,34 @@ module delay_mem (
 
     always_ff @(posedge clk) begin
         if (rst || dbg_pause) begin
-            req_cnt      <= '0;
-            dly_cnt      <= '0;
-            busy         <= 0;
-            mem_rsp.vld  <= 0;
-            mem_rsp.addr <= mem_req.addr;
-            lat_idx      <= '0;
-            lat_addr     <= '0;
+            req_cnt     <= '0;
+            dly_cnt     <= '0;
+            busy        <= 0;
+            mem_rsp.vld <= 0;
+            mem_rsp.uid <= mem_req.uid;
+            lat_idx     <= '0;
+            lat_uid     <= '0;
         end else if (busy) begin
             if (dly_cnt == 5'd1) begin
-                mem_rsp.vld  <= 1;
-                mem_rsp.addr <= lat_addr;
-                busy         <= 0;
+                mem_rsp.vld <= 1;
+                mem_rsp.uid <= lat_uid;
+                busy        <= 0;
             end else begin
-                mem_rsp.vld  <= 0;
-                dly_cnt      <= dly_cnt - 1;
+                mem_rsp.vld <= 0;
+                dly_cnt     <= dly_cnt - 1;
             end
         end else if (accept) begin
             if (req_cnt == 4'd9) begin
-                busy         <= 1;
-                dly_cnt      <= 5'd19;
-                lat_idx      <= idx;
-                lat_addr     <= mem_req.addr;
-                req_cnt      <= '0;
-                mem_rsp.vld  <= 0;
+                busy        <= 1;
+                dly_cnt     <= 5'd19;
+                lat_idx     <= idx;
+                lat_uid     <= mem_req.uid;
+                req_cnt     <= '0;
+                mem_rsp.vld <= 0;
             end else begin
-                mem_rsp.vld  <= 1;
-                mem_rsp.addr <= mem_req.addr;
-                req_cnt      <= req_cnt + 1;
+                mem_rsp.vld <= 1;
+                mem_rsp.uid <= mem_req.uid;
+                req_cnt     <= req_cnt + 1;
             end
         end else begin
             mem_rsp.vld <= 0;

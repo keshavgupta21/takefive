@@ -18,12 +18,15 @@ module icache(
     localparam IDX_BITS    = takefive_pkg::IDX_BITS;
     localparam CL_BITS     = takefive_pkg::CL_BITS;
     localparam TAG_BITS    = takefive_pkg::TAG_BITS;
-    localparam CL_WIDTH    = $bits(takefive_pkg::cacheline_t);
 
-    typedef enum logic [1:0] { REQ, WAIT, FILL } state_t;
+    // = $bits(takefive_pkg::cacheline_t); manual expansion required for Yosys
+    localparam CL_WIDTH    = 1 + TAG_BITS + CL_WORDS * 32;
+
+    typedef enum logic [1:0] { REQ, FETCH, FILL } state_t;
 
     state_t              state;
     takefive_pkg::addr_t lat_addr;
+    logic [31:0]         lat_uid;
 
     takefive_pkg::addr_t addr;
     assign addr.tag = mem_req.addr[31:IDX_BITS+CL_BITS+2];
@@ -66,7 +69,7 @@ module icache(
     // ---------------- DRAM Request ----------------
 
     always_ff @(posedge clk) begin
-        dram_req.vld  <= (state == WAIT) && dram_rdy;
+        dram_req.vld  <= (state == FETCH) && dram_rdy;
         dram_req.addr <= {lat_addr.tag, lat_addr.idx, {CL_BITS{1'b0}}, 2'b00};
         dram_req.wen  <= 1'b0;
         dram_req.data <= '0;
@@ -81,7 +84,7 @@ module icache(
     always_ff @(posedge clk) begin
         mem_rsp.vld  <= rsp_hit || rsp_fill;
         mem_rsp.data <= rsp_fill ? dram_rsp.data[lat_addr.wo] : line.words[addr.wo];
-        mem_rsp.addr <= rsp_fill ? {lat_addr.tag, lat_addr.idx, lat_addr.wo, lat_addr.bo} : mem_req.addr;
+        mem_rsp.uid  <= rsp_fill ? lat_uid : mem_req.uid;
     end
 
     // ---------------- State Machine ----------------
@@ -92,11 +95,13 @@ module icache(
             mem_rdy       <= 1;
             cache_mem_vld <= '0;
             lat_addr      <= '0;
+            lat_uid       <= '0;
         end else if (state == REQ && mem_req.vld && !cache_hit) begin
             lat_addr <= addr;
+            lat_uid  <= mem_req.uid;
             mem_rdy  <= 0;
-            state    <= WAIT;
-        end else if (state == WAIT && dram_rdy) begin
+            state    <= FETCH;
+        end else if (state == FETCH && dram_rdy) begin
             state <= FILL;
         end else if (state == FILL && dram_rsp.vld) begin
             cache_mem_vld[lat_addr.idx] <= 1;

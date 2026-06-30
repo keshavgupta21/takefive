@@ -15,8 +15,8 @@ module dcache_wrap (
     input  logic [31:0] mem_req_data,
 
     output logic        mem_rsp_vld,
-    output logic [31:0] mem_rsp_addr,
     output logic [31:0] mem_rsp_data,
+    output logic [31:0] mem_rsp_uid,
     output logic        mem_rdy
 );
 
@@ -25,11 +25,12 @@ module dcache_wrap (
     assign mem_req.addr = mem_req_addr;
     assign mem_req.wen  = mem_req_wen;
     assign mem_req.data = mem_req_data;
+    assign mem_req.uid  = '0;
 
     takefive_pkg::mem_rsp_t mem_rsp;
     assign mem_rsp_vld  = mem_rsp.vld;
-    assign mem_rsp_addr = mem_rsp.addr;
     assign mem_rsp_data = mem_rsp.data;
+    assign mem_rsp_uid  = mem_rsp.uid;
 
     takefive_pkg::dram_req_t dram_req;
     takefive_pkg::dram_rsp_t dram_rsp;
@@ -48,9 +49,10 @@ module dcache_wrap (
 
     takefive_pkg::mem_req_t dbg_req;
     assign dbg_req.vld  = wr_en;
-    assign dbg_req.addr = wr_addr;
     assign dbg_req.wen  = wr_en;
+    assign dbg_req.addr = wr_addr;
     assign dbg_req.data = wr_data;
+    assign dbg_req.uid  = '0;
 
     dram_mem u_dram(
         .clk       (clk       ),

@@ -22,36 +22,54 @@ module core (
     output logic                       dbg_pipe_busy
 );
 
-    // ---------------- Caches ----------------
+    // ---------------- MMU + Caches ----------------
 
-    takefive_pkg::mem_req_t imem_req;
-    takefive_pkg::mem_rsp_t imem_rsp;
-    logic                   imem_rdy;
+    takefive_pkg::mem_req_t imem_req, imem_cache_req;
+    takefive_pkg::mem_rsp_t imem_rsp, imem_cache_rsp;
+    logic                   imem_rdy, imem_cache_rdy;
 
-    icache u_icache(
-        .clk      (clk           ),
-        .rst      (rst           ),
-        .mem_req  (imem_req      ),
-        .mem_rsp  (imem_rsp      ),
-        .mem_rdy  (imem_rdy      ),
-        .dram_req (imem_dram_req ),
-        .dram_rsp (imem_dram_rsp ),
-        .dram_rdy (imem_dram_rdy )
+    mmu u_immu(
+        .pipe_req  (imem_req       ),
+        .pipe_rsp  (imem_rsp       ),
+        .pipe_rdy  (imem_rdy       ),
+        .cache_req (imem_cache_req ),
+        .cache_rsp (imem_cache_rsp ),
+        .cache_rdy (imem_cache_rdy )
     );
 
-    takefive_pkg::mem_req_t dmem_req;
-    takefive_pkg::mem_rsp_t dmem_rsp;
-    logic                   dmem_rdy;
+    icache u_icache(
+        .clk      (clk            ),
+        .rst      (rst            ),
+        .mem_req  (imem_cache_req ),
+        .mem_rsp  (imem_cache_rsp ),
+        .mem_rdy  (imem_cache_rdy ),
+        .dram_req (imem_dram_req  ),
+        .dram_rsp (imem_dram_rsp  ),
+        .dram_rdy (imem_dram_rdy  )
+    );
+
+    takefive_pkg::mem_req_t dmem_req, dmem_cache_req;
+    takefive_pkg::mem_rsp_t dmem_rsp, dmem_cache_rsp;
+    logic                   dmem_rdy, dmem_cache_rdy;
+
+    mmu u_dmmu(
+        .pipe_req  (dmem_req       ),
+        .pipe_rsp  (dmem_rsp       ),
+        .pipe_rdy  (dmem_rdy       ),
+        .cache_req (dmem_cache_req ),
+        .cache_rsp (dmem_cache_rsp ),
+        .cache_rdy (dmem_cache_rdy )
+    );
 
     dcache u_dcache(
-        .clk      (clk           ),
-        .rst      (rst           ),
-        .mem_req  (dmem_req      ),
-        .mem_rsp  (dmem_rsp      ),
-        .mem_rdy  (dmem_rdy      ),
-        .dram_req (dmem_dram_req ),
-        .dram_rsp (dmem_dram_rsp ),
-        .dram_rdy (dmem_dram_rdy )
+        .clk      (clk            ),
+        .rst      (rst            ),
+        .mem_req  (dmem_cache_req ),
+        .mem_rsp  (dmem_cache_rsp ),
+        .mem_rdy  (dmem_cache_rdy ),
+        .dram_req (dmem_dram_req  ),
+        .dram_rsp (dmem_dram_rsp  ),
+        .dram_rdy (dmem_dram_rdy  )
     );
 
     //         --- PIPELINE STAGE 1 ---

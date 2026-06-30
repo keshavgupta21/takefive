@@ -12,9 +12,10 @@ module mem
 
     always_comb begin
         mem_req.vld  = 1'b0;
-        mem_req.addr = r2e.rvals.rval1 + r2e.inst.imm;
         mem_req.wen  = 1'b0;
+        mem_req.addr = r2e.rvals.rval1 + r2e.inst.imm;
         mem_req.data = r2e.rvals.rval2;
+        mem_req.uid  = r2e.rvals.rval1 + r2e.inst.imm;
         stall        = 0;
 
         if (r2e.vld) begin

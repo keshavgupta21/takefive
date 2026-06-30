@@ -71,15 +71,17 @@ module core_wrap (
 
     takefive_pkg::mem_req_t imem_dbg_req;
     assign imem_dbg_req.vld  = imem_wr_en;
-    assign imem_dbg_req.addr = imem_wr_addr;
     assign imem_dbg_req.wen  = imem_wr_en;
+    assign imem_dbg_req.addr = imem_wr_addr;
     assign imem_dbg_req.data = imem_wr_data;
+    assign imem_dbg_req.uid  = '0;
 
     takefive_pkg::mem_req_t dmem_dbg_req;
     assign dmem_dbg_req.vld  = dmem_wr_en;
-    assign dmem_dbg_req.addr = dmem_wr_addr;
     assign dmem_dbg_req.wen  = dmem_wr_en;
+    assign dmem_dbg_req.addr = dmem_wr_addr;
     assign dmem_dbg_req.data = dmem_wr_data;
+    assign dmem_dbg_req.uid  = '0;
 
     dram_mem u_imem(
         .clk       (clk           ),

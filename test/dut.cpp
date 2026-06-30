@@ -450,7 +450,7 @@ void ICacheDut::set_req(uint32_t addr) {
 
 bool     ICacheDut::rsp_vld()  const { return model_->mem_rsp_vld;  }
 uint32_t ICacheDut::rsp_data() const { return model_->mem_rsp_data; }
-uint32_t ICacheDut::rsp_addr() const { return model_->mem_rsp_addr; }
+uint32_t ICacheDut::rsp_uid()  const { return model_->mem_rsp_uid;  }
 bool     ICacheDut::rdy()      const { return model_->mem_rdy;      }
 
 // ---- DCacheDut ----
@@ -525,5 +525,5 @@ void DCacheDut::set_req(uint32_t addr, bool wen, uint32_t data) {
 
 bool     DCacheDut::rsp_vld()  const { return model_->mem_rsp_vld;  }
 uint32_t DCacheDut::rsp_data() const { return model_->mem_rsp_data; }
-uint32_t DCacheDut::rsp_addr() const { return model_->mem_rsp_addr; }
+uint32_t DCacheDut::rsp_uid()  const { return model_->mem_rsp_uid;  }
 bool     DCacheDut::rdy()      const { return model_->mem_rdy;      }

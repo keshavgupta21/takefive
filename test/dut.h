@@ -117,7 +117,7 @@ public:
     void set_req(uint32_t addr);
     bool rsp_vld() const;
     uint32_t rsp_data() const;
-    uint32_t rsp_addr() const;
+    uint32_t rsp_uid() const;
     bool rdy() const;
 
 private:
@@ -136,7 +136,7 @@ public:
     void set_req(uint32_t addr, bool wen, uint32_t data);
     bool rsp_vld() const;
     uint32_t rsp_data() const;
-    uint32_t rsp_addr() const;
+    uint32_t rsp_uid() const;
     bool rdy() const;
 
 private:

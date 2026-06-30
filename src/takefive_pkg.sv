@@ -115,15 +115,16 @@ package takefive_pkg;
 
     typedef struct packed {
         logic        vld;
-        logic [31:0] addr;
         logic        wen;
+        logic [31:0] addr;
         logic [31:0] data;
+        logic [31:0] uid;
     } mem_req_t;
 
     typedef struct packed {
         logic        vld;
-        logic [31:0] addr;
         logic [31:0] data;
+        logic [31:0] uid;
     } mem_rsp_t;
 
     // ---------------- Cache Types ----------------
