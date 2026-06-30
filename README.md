@@ -66,11 +66,12 @@ The core is a 4-stage in-order pipeline: **Fetch → Decode → Execute/Mem → 
 RTL sources and top modules are declared in `config.json`. Any new `.sv` file must be added to `sources`. `sim_top` lists modules with Verilator wrappers; `syn_top` lists modules to synthesise individually.
 
 ## TODOs
-- Add Vivado synthesis + sta + util scripts or figure out how to perform STA with yosys.
+- Add Vivado syn + sta + util scripts, try to get something working on the Pynq Z2 board.
 - Make tests such that they take random simple programs written in C, compile them to riscv asm and then check the regfile.
+  - Perhaps try constrained random instruction generation, or bring in the official riscv certification tests.
+  - Add a mode to run.py that will take a C program, compile it with RISCV GCC and run it in our processor.
 - Consider skid-style pipeline regs to make pipeline slightly more efficient for CPI
 - Check how the RF and cache mems are getting synthesized. I have a feeling we have a really long path in the dcache req -> hit -> write path.
 - Remove extra signals from core_top such as dram_inst_req.data since they will be unused and unnecessary?
 - Figure out why the CPI is so bad - I think it's just because we're randomly jumping around too much.
-- We have some failing tests?
-- Find a better solution than WB and WB2 states in dcache
+- Think of better MMU strategies instead of just wrapping around. This will be relevant when we have a better test suite.
