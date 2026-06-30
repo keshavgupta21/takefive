@@ -1,8 +1,6 @@
 `include "common.svh"
 
-module core_wrap #(
-    parameter DEPTH = 64
-)(
+module core_wrap (
     input  logic        clk,
     input  logic        rst,
 
@@ -83,7 +81,7 @@ module core_wrap #(
     assign dmem_dbg_req.wen  = dmem_wr_en;
     assign dmem_dbg_req.data = dmem_wr_data;
 
-    dram_mem #(.DEPTH(1024)) u_imem(
+    dram_mem u_imem(
         .clk       (clk           ),
         .rst       (rst           ),
         .dbg_pause (dbg_pause     ),
@@ -93,7 +91,7 @@ module core_wrap #(
         .dram_rdy  (imem_dram_rdy )
     );
 
-    dram_mem #(.DEPTH(1024)) u_dmem(
+    dram_mem u_dmem(
         .clk       (clk           ),
         .rst       (rst           ),
         .dbg_pause (dbg_pause     ),

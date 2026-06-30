@@ -8,16 +8,45 @@ ROOT = Path(__file__).resolve().parent
 SYN_DIR = ROOT / "syn"
 CONFIG = json.loads((ROOT / "config.json").read_text())
 
+
+class _Tee:
+    def __init__(self, stream, logfile):
+        self._stream  = stream
+        self._logfile = logfile
+
+    def write(self, data):
+        self._stream.write(data)
+        self._logfile.write(data)
+
+    def flush(self):
+        self._stream.flush()
+        self._logfile.flush()
+
+    def fileno(self):
+        return self._stream.fileno()
+
+
 def run(cmd):
     print(f"==> {cmd[0]}...")
-    result = subprocess.run(cmd, cwd=ROOT)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
+    sys.stdout.flush()
+    proc = subprocess.Popen(
+        cmd, cwd=ROOT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, bufsize=1,
+    )
+    for line in proc.stdout:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+    proc.wait()
+    if proc.returncode != 0:
+        sys.exit(proc.returncode)
+
 
 def verilator_root():
     return subprocess.check_output(
         ["verilator", "--getenv", "VERILATOR_ROOT"], text=True
     ).strip()
+
 
 def syn():
     SYN_DIR.mkdir(exist_ok=True)
@@ -32,13 +61,9 @@ def syn():
     """
 
     print(f"==> Synthesizing {top} with Yosys...")
-    result = subprocess.run(
-        ["yosys", "-p", script, "-l", str(SYN_DIR / f"{top}.log")],
-        cwd=ROOT,
-    )
-    if result.returncode != 0:
-        sys.exit(result.returncode)
+    run(["yosys", "-p", script, "-l", str(SYN_DIR / f"{top}.log")])
     print(f"==> Done. Netlist written to syn/{top}.v")
+
 
 def syn_modules():
     SYN_DIR.mkdir(exist_ok=True)
@@ -53,13 +78,9 @@ def syn_modules():
         """
 
         print(f"==> Synthesizing {top} with Yosys...")
-        result = subprocess.run(
-            ["yosys", "-p", script, "-l", str(SYN_DIR / f"{top}.log")],
-            cwd=ROOT,
-        )
-        if result.returncode != 0:
-            sys.exit(result.returncode)
+        run(["yosys", "-p", script, "-l", str(SYN_DIR / f"{top}.log")])
         print(f"==> Done. Netlist written to syn/{top}.v")
+
 
 def sim(use_netlist=False, use_waves=False):
     sim_tops = CONFIG["sim_top"]
@@ -121,12 +142,14 @@ def sim(use_netlist=False, use_waves=False):
         tb_cmd.append("++waves")
     run(tb_cmd)
 
+
 def clean():
     import shutil
     for d in [ROOT / "build", SYN_DIR]:
         if d.exists():
             shutil.rmtree(d)
             print(f"==> Removed {d.relative_to(ROOT)}/")
+
 
 def main():
     args = set(sys.argv[1:])
@@ -148,18 +171,33 @@ def main():
     if do_clean:
         clean()
 
-    if do_syn:
-        syn()
+    if do_syn or do_sim or do_sim_waves or do_sim_syn:
+        (ROOT / "build").mkdir(parents=True, exist_ok=True)
+        log_path = ROOT / "build" / "test.log"
+        orig_stdout = sys.stdout
+        orig_stderr = sys.stderr
+        logfile = open(log_path, "w")
+        try:
+            sys.stdout = _Tee(orig_stdout, logfile)
+            sys.stderr = _Tee(orig_stderr, logfile)
 
-    if do_sim:
-        sim()
+            if do_syn:
+                syn()
 
-    if do_sim_waves:
-        sim(use_waves=True)
+            if do_sim:
+                sim()
 
-    if do_sim_syn:
-        syn_modules()
-        sim(use_netlist=True)
+            if do_sim_waves:
+                sim(use_waves=True)
+
+            if do_sim_syn:
+                syn_modules()
+                sim(use_netlist=True)
+        finally:
+            sys.stdout = orig_stdout
+            sys.stderr = orig_stderr
+            logfile.close()
+
 
 if __name__ == "__main__":
     main()

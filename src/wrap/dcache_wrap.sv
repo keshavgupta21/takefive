@@ -1,8 +1,6 @@
 `include "common.svh"
 
-module dcache_wrap #(
-    parameter DEPTH = 1024
-)(
+module dcache_wrap (
     input  logic        clk,
     input  logic        rst,
 
@@ -54,7 +52,7 @@ module dcache_wrap #(
     assign dbg_req.wen  = wr_en;
     assign dbg_req.data = wr_data;
 
-    dram_mem #(.DEPTH(DEPTH)) u_dram(
+    dram_mem u_dram(
         .clk       (clk       ),
         .rst       (rst       ),
         .dbg_pause (dbg_pause ),

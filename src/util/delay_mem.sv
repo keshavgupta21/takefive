@@ -1,8 +1,6 @@
 `include "common.svh"
 
-module delay_mem #(
-    parameter DEPTH = 1024
-)(
+module delay_mem (
     input  logic                   clk,
     input  logic                   rst,
 
@@ -14,6 +12,7 @@ module delay_mem #(
     output logic                   mem_rdy
 );
 
+    localparam DEPTH  = takefive_pkg::DRAM_WORDS;
     localparam AWIDTH = $clog2(DEPTH);
 
     (* ram_style = "block" *) logic [31:0] ram [0:DEPTH-1];

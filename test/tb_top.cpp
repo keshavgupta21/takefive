@@ -451,7 +451,7 @@ static int test_branch_directed(BranchDut &dut) {
 }
 
 static int test_fetch_random(FetchDut &dut, int n_rounds) {
-    const int depth = 64;
+    const int depth = DRAM_WORDS;
     std::mt19937 rng(55);
     std::uniform_int_distribution<uint32_t> val_dist;
     std::uniform_int_distribution<int> len_dist(32, 64);
@@ -548,10 +548,10 @@ static void dump_program(const std::vector<uint32_t> &prog, int depth) {
 static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
                             int hazard_dist, bool no_branches,
                             bool short_prog = false, bool no_mem = false) {
-    const int depth = 1024;
+    const int depth = DRAM_WORDS;
     std::mt19937 rng(200);
     std::uniform_int_distribution<int> len_dist(short_prog ? 5 : 32,
-                                                short_prog ? 10 : 1024);
+                                                short_prog ? 10 : DRAM_WORDS);
 
     CoreRef ref(depth);
     CoreRef::Stats total = {};
@@ -672,7 +672,7 @@ static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
 }
 
 static int test_icache_random(ICacheDut &dut, int n) {
-    const int DEPTH = 1024;
+    const int DEPTH = DRAM_WORDS;
     const int TOTAL = DEPTH;
 
     std::mt19937 rng(99);
@@ -729,7 +729,7 @@ static int test_icache_random(ICacheDut &dut, int n) {
 }
 
 static int test_dcache_random(DCacheDut &dut, int n) {
-    const int DEPTH = 1024;
+    const int DEPTH = DRAM_WORDS;
     const int TOTAL = DEPTH;
 
     std::mt19937 rng(123);
@@ -822,17 +822,17 @@ int main(int argc, char **argv) {
     if (waves) waves_open("build/waves.vcd");
 #endif
 
-    // waves_reset(); errors += test_dec_directed(dec_dut);
-    // waves_reset(); errors += test_dec_random(dec_dut, syn ? 100 : 10000000);
-    // waves_reset(); errors += test_exe_directed(exe_dut);
-    // waves_reset(); errors += test_exe_random(exe_dut, syn ? 100 : 1000000);
-    // waves_reset(); errors += test_mem_directed(mem_dut);
-    // waves_reset(); errors += test_branch_directed(branch_dut);
-    // waves_reset(); errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
-    // waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
-    // waves_reset(); errors += test_dcache_random(dcache_dut, syn ? 1000 : 1000000);
-    // waves_reset(); errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
-    waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
+    waves_reset(); errors += test_dec_directed(dec_dut);
+    waves_reset(); errors += test_dec_random(dec_dut, syn ? 100 : 10000000);
+    waves_reset(); errors += test_exe_directed(exe_dut);
+    waves_reset(); errors += test_exe_random(exe_dut, syn ? 100 : 1000000);
+    waves_reset(); errors += test_mem_directed(mem_dut);
+    waves_reset(); errors += test_branch_directed(branch_dut);
+    waves_reset(); errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
+    waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
+    waves_reset(); errors += test_dcache_random(dcache_dut, syn ? 1000 : 1000000);
+    waves_reset(); errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
+    // waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
     // waves_reset(); errors += test_core_random(core_dut, "core_short_no_hazard", syn ? 100 : 10000, 3, false, true,  false);
     // waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
     // waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);

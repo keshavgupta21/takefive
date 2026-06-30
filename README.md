@@ -73,3 +73,4 @@ RTL sources and top modules are declared in `config.json`. Any new `.sv` file mu
 - Remove extra signals from core_top such as dram_inst_req.data since they will be unused and unnecessary?
 - Figure out why the CPI is so bad - I think it's just because we're randomly jumping around too much.
 - We have some failing tests?
+- Find a better solution than WB and WB2 states in dcache

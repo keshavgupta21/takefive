@@ -128,6 +128,7 @@ package takefive_pkg;
 
     // ---------------- Cache Types ----------------
 
+    parameter DRAM_WORDS  = 1024;
     parameter CL_WORDS    = 16;
     parameter CACHE_DEPTH = 16;
     parameter CL_BITS     = $clog2(CL_WORDS);

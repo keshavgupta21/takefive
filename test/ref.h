@@ -4,6 +4,8 @@
 #include <random>
 #include <vector>
 
+static constexpr int DRAM_WORDS = 1024;
+
 struct Decoded {
     bool     vld;
     uint8_t  opcode;
@@ -88,7 +90,7 @@ NxtPcResult branch_eval(uint32_t pc, const Decoded& inst,
 
 class FetchRef {
 public:
-    FetchRef(size_t depth = 1024);
+    FetchRef(size_t depth = DRAM_WORDS);
     void reset();
     void write(uint32_t addr, uint32_t data);
     void tick(bool nxt_vld = false, uint32_t nxt = 0);
@@ -102,7 +104,7 @@ private:
 
 class DmemRef {
 public:
-    DmemRef(size_t depth = 1024);
+    DmemRef(size_t depth = DRAM_WORDS);
     void reset();
     uint32_t read(uint32_t addr) const;
     void write(uint32_t addr, uint32_t data);
@@ -126,7 +128,7 @@ public:
         uint64_t rf_writes;
     };
 
-    CoreRef(size_t depth = 1024);
+    CoreRef(size_t depth = DRAM_WORDS);
     void reset();
     void write_imem(uint32_t addr, uint32_t data);
     void write_reg(uint8_t rd, uint32_t data);

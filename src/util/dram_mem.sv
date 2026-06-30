@@ -1,8 +1,6 @@
 `include "common.svh"
 
-module dram_mem #(
-    parameter DEPTH = 1024
-)(
+module dram_mem (
     input  logic                                     clk,
     input  logic                                     rst,
 
@@ -15,6 +13,7 @@ module dram_mem #(
     output logic                                     dram_rdy
 );
 
+    localparam DEPTH    = takefive_pkg::DRAM_WORDS;
     localparam CL_WORDS = takefive_pkg::CL_WORDS;
     localparam LINES    = DEPTH / CL_WORDS;
     localparam AWIDTH   = $clog2(LINES);

@@ -1,8 +1,6 @@
 `include "common.svh"
 
-module fetch_wrap #(
-    parameter DEPTH = 64
-)(
+module fetch_wrap (
     input  logic        clk,
     input  logic        rst,
 
@@ -55,7 +53,7 @@ module fetch_wrap #(
     assign dbg_req.wen  = wr_en;
     assign dbg_req.data = wr_data;
 
-    delay_mem #(.DEPTH(DEPTH)) u_mem(
+    delay_mem u_mem(
         .clk       (clk       ),
         .rst       (rst       ),
         .dbg_pause (dbg_pause ),

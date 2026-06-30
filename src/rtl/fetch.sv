@@ -42,6 +42,6 @@ module fetch (
     end
 
     assign f2d.vld  = mem_rsp.vld && !invalidate_rd;
-    assign f2d.pc   = mem_rsp.addr;
+    assign f2d.pc   = pc;
     assign f2d.inst = mem_rsp.data;
 endmodule
