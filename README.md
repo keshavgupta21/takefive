@@ -133,10 +133,31 @@ RTL sources and top modules are declared in `config.json`:
 - `sim_top` — modules with Verilator wrappers (each gets its own `build/<top>/` dir).
 - `syn_top` — modules synthesised individually by Yosys into `syn/<top>.v`.
 
+## RV32I Limitations
+
+TakeFive implements a subset of the RV32I base integer ISA. The following instructions or behaviours are not yet supported:
+
+**Sub-word memory access (LB, LH, LBU, LHU, SB, SH)**
+Only word (32-bit) loads and stores are implemented. The decode stage rejects all other `funct3` encodings for LOAD and STORE as illegal, and the memory interface (`mem_req_t`) has no byte-enable field, so sub-word access is not possible at the hardware level.
+
+**ECALL / EBREAK**
+The decoder accepts both instructions (OPC_SYSTEM, funct3 = 0) as valid, but the writeback stage has no handler for OPC_SYSTEM — they silently pass through the pipeline as no-ops. No trap, exception vector, or privileged-mode machinery exists.
+
+**No exception or interrupt support**
+There is no trap mechanism of any kind: illegal instructions, misaligned memory accesses, and external interrupts are all silently ignored. This also means there is no way to distinguish ECALL from EBREAK at runtime.
+
+**Misaligned memory access is undefined**
+The memory stage computes the effective address without alignment checking. A word load or store to a non-word-aligned address passes an unaligned address to the cache, producing undefined behaviour.
+
+**FENCE is a no-op**
+FENCE (OPC_FENCE, funct3 = 0) is decoded as valid but neither the execute nor the writeback stage enforces any memory-ordering semantics. For this single-core, in-order pipeline the ordering happens to be correct regardless, but the instruction is not architecturally implemented.
+
 ## TODOs
 
 - Add Vivado syn + sta + impl scripts; get it running on the Pynq Z2.
 - Bring in the official RISC-V compliance/certification test suite.
 - Consider skid-style pipeline registers for better CPI.
+- Consider skid-style pipeline registers for memory requests.
 - Investigate the dcache req → hit → write critical path.
-- Figure out why unit-test CPI is high (likely excess random branches in the random test).
+- Add CPI reporting to tests.
+- Add exceptions/interrupts at-least for illegal instructions.
