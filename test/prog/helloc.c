@@ -1,6 +1,6 @@
 #include "util/util.h"
 
 int main(void) {
-    volatile int x = 0x01020304;
+    puts("hello world!\n");
     dump_and_exit();
 }

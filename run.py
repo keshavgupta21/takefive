@@ -45,32 +45,36 @@ def run(cmd):
         sys.exit(proc.returncode)
 
 
+def run_nofail(cmd):
+    """Like run() but returns the exit code instead of calling sys.exit()."""
+    print(f"==> {cmd[0]}...")
+    sys.stdout.flush()
+    proc = subprocess.Popen(
+        cmd, cwd=ROOT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, bufsize=1,
+    )
+    for line in proc.stdout:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+    proc.wait()
+    return proc.returncode
+
+
 def verilator_root():
     return subprocess.check_output(
         ["verilator", "--getenv", "VERILATOR_ROOT"], text=True
     ).strip()
 
 
-def syn():
-    SYN_DIR.mkdir(exist_ok=True)
-    sources = " ".join(CONFIG["sources"])
-    top = "core_top"
-
-    script = f"""
-        read_verilog -sv -I src -D SYNTHESIS {sources};
-        synth -top {top};
-        flatten;
-        write_verilog syn/{top}.v;
-    """
-
-    print(f"==> Synthesizing {top} with Yosys...")
-    run(["yosys", "-p", script, "-l", str(SYN_DIR / f"{top}.log")])
-    print(f"==> Done. Netlist written to syn/{top}.v")
+def _syn_sources():
+    return [s for s in CONFIG["sources"]
+            if s.startswith("src/rtl/") or s == "src/takefive_pkg.sv"]
 
 
 def syn_modules():
     SYN_DIR.mkdir(exist_ok=True)
-    sources = " ".join(CONFIG["sources"])
+    sources = " ".join(_syn_sources())
 
     for top in CONFIG["syn_top"]:
         script = f"""
@@ -155,7 +159,7 @@ def sim_syn():
     run([str(ROOT / "build" / "tb_top"), "++syn"])
 
 
-def test(progname, use_netlist=False, use_waves=False):
+def compile_prog(progname):
     build = ROOT / "build"
     build.mkdir(parents=True, exist_ok=True)
 
@@ -205,15 +209,46 @@ def test(progname, use_netlist=False, use_waves=False):
     to_mem(dbin, build / "data.mem")
     print(f"==> build/inst.mem and build/data.mem written ({DRAM_WORDS} words each)")
 
+
+def test(progname, use_netlist=False, use_waves=False):
+    compile_prog(progname)
     if use_netlist:
         syn_modules()
-
     build_tb(use_netlist=use_netlist, use_waves=use_waves)
-
-    tb_cmd = [str(ROOT / "build" / "tb_top"), "++prog"]
+    tb_cmd = [str(ROOT / "build" / "tb_top"), "++prog", "++name", progname]
     if use_waves:
         tb_cmd.append("++waves")
     run(tb_cmd)
+
+
+def test_all():
+    prog_dir = ROOT / "test" / "prog"
+    progs = sorted(
+        p.stem for p in prog_dir.iterdir()
+        if p.is_file() and p.suffix in (".c", ".s")
+    )
+    if not progs:
+        print("No test programs found in test/prog/")
+        return
+
+    build_tb()
+
+    passed = 0
+    failed = []
+    for name in progs:
+        compile_prog(name)
+        rc = run_nofail([
+            str(ROOT / "build" / "tb_top"), "++prog", "++quiet", "++name", name
+        ])
+        if rc == 0:
+            passed += 1
+        else:
+            failed.append(name)
+
+    total = len(progs)
+    print(f"\n==> {passed}/{total} tests passed")
+    if failed:
+        print(f"    FAILED: {', '.join(failed)}")
 
 
 def clean():
@@ -243,29 +278,29 @@ def main():
     do_test       = "++test"       in flags
     do_test_syn   = "++test_syn"   in flags
     do_test_waves = "++test_waves" in flags
+    do_test_all   = "++test_all"   in flags
     do_sim        = "++sim"        in flags
     do_sim_waves  = "++sim_waves"  in flags
     do_sim_syn    = "++sim_syn"    in flags
-    do_syn        = "++syn"        in flags
     do_clean      = "++clean"      in flags
 
-    if not (do_sim or do_sim_waves or do_sim_syn or do_syn or do_clean
-            or do_test or do_test_syn or do_test_waves):
+    if not (do_sim or do_sim_waves or do_sim_syn or do_clean
+            or do_test or do_test_syn or do_test_waves or do_test_all):
         print("Usage: ./run.py <mode>")
         print("  ++test <prog>       Compile and run prog against RTL core")
         print("  ++test_syn <prog>   Compile and run prog against synthesized core")
         print("  ++test_waves <prog> Compile and run prog with VCD waveform output")
+        print("  ++test_all          Compile and run all programs in test/prog/")
         print("  ++sim               Simulate with Verilator")
         print("  ++sim_waves         Simulate with VCD waveform output")
         print("  ++sim_syn           Synthesize modules, then simulate netlists")
-        print("  ++syn               Synthesize core_top with Yosys")
         print("  ++clean             Remove build/ and syn/")
         sys.exit(1)
 
     if do_clean:
         clean()
 
-    if do_syn or do_sim or do_sim_waves or do_sim_syn or do_test or do_test_syn or do_test_waves:
+    if do_sim or do_sim_waves or do_sim_syn or do_test or do_test_syn or do_test_waves or do_test_all:
         (ROOT / "build").mkdir(parents=True, exist_ok=True)
         log_path = ROOT / "build" / "test.log"
         orig_stdout = sys.stdout
@@ -274,9 +309,6 @@ def main():
         try:
             sys.stdout = _Tee(orig_stdout, logfile)
             sys.stderr = _Tee(orig_stderr, logfile)
-
-            if do_syn:
-                syn()
 
             if do_sim:
                 sim()
@@ -295,6 +327,9 @@ def main():
 
             if do_test_waves:
                 test(progname, use_waves=True)
+
+            if do_test_all:
+                test_all()
         finally:
             sys.stdout = orig_stdout
             sys.stderr = orig_stderr

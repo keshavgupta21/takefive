@@ -59,17 +59,17 @@ test/
 
 ```sh
 # Unit tests (decode, execute, branch, fetch, icache, dcache)
-./run.py ++sim            # Simulate RTL with Verilator
-./run.py ++sim_waves      # Simulate with VCD waveform output
-./run.py ++sim_syn        # Synthesize all modules, then simulate netlists
-./run.py ++syn            # Synthesize core_top with Yosys
+./run.py ++sim               # Simulate RTL with Verilator
+./run.py ++sim_waves         # Simulate with VCD waveform output
+./run.py ++sim_syn           # Synthesize all modules, then simulate netlists
 
 # Full-core integration tests
 ./run.py ++test <prog>       # Compile test/prog/<prog>.c/.s and run against RTL core
 ./run.py ++test_waves <prog> # Same, with VCD written to build/waves.vcd
 ./run.py ++test_syn <prog>   # Same, against synthesized core netlist
+./run.py ++test_all          # Compile and run all programs in test/prog/
 
-./run.py ++clean          # Remove build/ and syn/
+./run.py ++clean             # Remove build/ and syn/
 ```
 
 `++test` compiles the program with `riscv64-unknown-elf-gcc` (rv32i, -O2, -ffreestanding,

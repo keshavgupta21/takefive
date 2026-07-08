@@ -1,6 +1,8 @@
 #include "dut.h"
 #include <cstring>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <vector>
 #include <functional>
 
@@ -496,6 +498,9 @@ bool CoreDut::run(int max_steps) {
                     model_->dbg_pause = 1;
                     model_->eval();
                     return true;
+                }
+                if (addr == 0xFFFFFFF8) {
+                    std::cout << (char)(model_->mmio_req_data & 0xFF);
                 }
                 mmio_[(addr & 0xFFu) >> 2] = model_->mmio_req_data;
             } else {

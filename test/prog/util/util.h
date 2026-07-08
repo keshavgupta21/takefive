@@ -1,5 +1,21 @@
 #pragma once
 
+static inline __attribute__((always_inline)) void putc(char c) {
+    *(volatile unsigned int *)0xFFFFFFF8u = (unsigned int)(unsigned char)c;
+}
+
+static inline __attribute__((always_inline)) void puts(const char *s) {
+    const unsigned int *w = (const unsigned int *)(const void *)s;
+    while (1) {
+        unsigned int v = *w++;
+        unsigned int b;
+        b =  v        & 0xFFu; if (!b) return; putc((char)b);
+        b = (v >>  8) & 0xFFu; if (!b) return; putc((char)b);
+        b = (v >> 16) & 0xFFu; if (!b) return; putc((char)b);
+        b = (v >> 24) & 0xFFu; if (!b) return; putc((char)b);
+    }
+}
+
 static inline __attribute__((always_inline, noreturn)) void exit(void) {
     asm volatile("sw x0, -4(x0)");
     __builtin_unreachable();

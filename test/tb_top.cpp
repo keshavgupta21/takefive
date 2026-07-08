@@ -591,10 +591,11 @@ static int test_dcache_random(DCacheDut &dut, int n) {
     return rc;
 }
 
-static int test_core(const char *imem_path, const char *dmem_path) {
+static int test_core(const char *imem_path, const char *dmem_path,
+                     bool quiet, const std::string &test_name) {
     CoreRef ref;
     if (!ref.load_imem(imem_path)) {
-        std::cout << "test_core: SKIP (" << imem_path << " not found)" << std::endl;
+        std::cout << test_name << ": SKIP (" << imem_path << " not found)" << std::endl;
         return 0;
     }
     ref.load_dmem(dmem_path);
@@ -608,46 +609,55 @@ static int test_core(const char *imem_path, const char *dmem_path) {
 #endif
 
     bool ref_ok = ref.run();
-    bool dut_ok = dut.run();
 
-    std::cout << "  reg    ref         dut\n";
-    for (int i = 0; i < 32; i++) {
-        uint32_t r = ref.mmio(i);
-        uint32_t d = dut.mmio(i);
-        char name[5];
-        std::snprintf(name, sizeof(name), "x%d", i);
-        std::cout << "  " << std::left  << std::setw(5) << name
-                  << "  0x" << std::right << std::hex << std::setfill('0') << std::setw(8) << r
-                  << "  0x" << std::setw(8) << d
-                  << std::setfill(' ') << std::dec
-                  << (r != d ? "  ***" : "")
-                  << "\n";
-    }
+    std::cout << "---- DUT Output ----\n";
+    bool dut_ok = dut.run();
+    std::cout << "--------------------\n";
 
     int errors = 0;
-    if (!ref_ok) { std::cout << "test_core: ref FAIL (no clean exit)" << std::endl; errors++; }
-    if (!dut_ok) { std::cout << "test_core: dut FAIL (no clean exit)" << std::endl; errors++; }
+    if (!ref_ok) errors++;
+    if (!dut_ok) errors++;
+    for (int i = 0; i < MMIO_WORDS; i++)
+        if (ref.mmio(i) != dut.mmio(i)) errors++;
 
-    for (int i = 0; i < MMIO_WORDS; i++) {
-        if (ref.mmio(i) != dut.mmio(i)) {
-            errors++;
+    if (!quiet || errors) {
+        std::cout << "  reg    ref         dut\n";
+        for (int i = 0; i < 32; i++) {
+            uint32_t r = ref.mmio(i);
+            uint32_t d = dut.mmio(i);
+            char regname[5];
+            std::snprintf(regname, sizeof(regname), "x%d", i);
+            std::cout << "  " << std::left  << std::setw(5) << regname
+                      << "  0x" << std::right << std::hex << std::setfill('0') << std::setw(8) << r
+                      << "  0x" << std::setw(8) << d
+                      << std::setfill(' ') << std::dec
+                      << (r != d ? "  ***" : "")
+                      << "\n";
         }
     }
 
-    if (!errors) std::cout << "test_core: PASS" << std::endl;
+    if (!ref_ok) std::cout << test_name << ": ref FAIL (no clean exit)" << std::endl;
+    if (!dut_ok) std::cout << test_name << ": dut FAIL (no clean exit)" << std::endl;
+    if (!errors) std::cout << test_name << ": PASS" << std::endl;
+    else         std::cout << test_name << ": FAIL" << std::endl;
     return errors;
 }
 
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
-    bool syn   = false;
-    bool waves = false;
-    bool prog  = false;
+    bool        syn       = false;
+    bool        waves     = false;
+    bool        prog      = false;
+    bool        quiet     = false;
+    std::string test_name = "test_core";
     for (int i = 1; i < argc; i++) {
-        if (std::string(argv[i]) == "++syn")   syn   = true;
-        if (std::string(argv[i]) == "++waves") waves = true;
-        if (std::string(argv[i]) == "++prog")  prog  = true;
+        if (std::string(argv[i]) == "++syn")    syn   = true;
+        if (std::string(argv[i]) == "++waves")  waves = true;
+        if (std::string(argv[i]) == "++prog")   prog  = true;
+        if (std::string(argv[i]) == "++quiet")  quiet = true;
+        if (std::string(argv[i]) == "++name" && i + 1 < argc)
+            test_name = argv[++i];
     }
 
 #ifdef WAVES
@@ -655,7 +665,7 @@ int main(int argc, char **argv) {
 #endif
 
     if (prog) {
-        int errors = test_core("build/inst.mem", "build/data.mem");
+        int errors = test_core("build/inst.mem", "build/data.mem", quiet, test_name);
 #ifdef WAVES
         if (waves) waves_close();
 #endif
