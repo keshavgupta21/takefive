@@ -29,36 +29,41 @@ class _Tee:
         return self._stream.fileno()
 
 
-def run(cmd):
-    print(f"==> {cmd[0]}...")
-    sys.stdout.flush()
-    proc = subprocess.Popen(
-        cmd, cwd=ROOT,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
-    )
-    for line in proc.stdout:
-        sys.stdout.write(line)
+def run(cmd, quiet=False):
+    if not quiet:
+        print(f"==> {cmd[0]}...")
         sys.stdout.flush()
-    proc.wait()
-    if proc.returncode != 0:
-        sys.exit(proc.returncode)
+    if quiet:
+        proc = subprocess.run(
+            cmd, cwd=ROOT,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if proc.returncode != 0:
+            sys.stdout.write(proc.stdout)
+            sys.exit(proc.returncode)
+    else:
+        proc = subprocess.Popen(
+            cmd, cwd=ROOT,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1,
+        )
+        for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+        proc.wait()
+        if proc.returncode != 0:
+            sys.exit(proc.returncode)
 
 
-def run_nofail(cmd):
-    """Like run() but returns the exit code instead of calling sys.exit()."""
-    print(f"==> {cmd[0]}...")
-    sys.stdout.flush()
-    proc = subprocess.Popen(
+def run_capture(cmd):
+    """Run command, return (exit_code, combined_output_string)."""
+    proc = subprocess.run(
         cmd, cwd=ROOT,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
+        text=True,
     )
-    for line in proc.stdout:
-        sys.stdout.write(line)
-        sys.stdout.flush()
-    proc.wait()
-    return proc.returncode
+    return proc.returncode, proc.stdout
 
 
 def verilator_root():
@@ -89,7 +94,7 @@ def syn_modules():
         print(f"==> Done. Netlist written to syn/{top}.v")
 
 
-def build_tb(use_netlist=False, use_waves=False):
+def build_tb(use_netlist=False, use_waves=False, quiet=False):
     sim_tops = CONFIG["sim_top"]
 
     for top in sim_tops:
@@ -118,7 +123,7 @@ def build_tb(use_netlist=False, use_waves=False):
             "--top-module", top,
             *trace_flags,
             *sources,
-        ])
+        ], quiet=quiet)
 
     vinc = f"{verilator_root()}/include"
     first = f"build/{sim_tops[0]}"
@@ -142,7 +147,7 @@ def build_tb(use_netlist=False, use_waves=False):
         "-Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv",
         "-pthread", "-lpthread",
         "-o", "build/tb_top",
-    ])
+    ], quiet=quiet)
 
 
 def sim(use_waves=False):
@@ -159,7 +164,7 @@ def sim_syn():
     run([str(ROOT / "build" / "tb_top"), "++syn"])
 
 
-def compile_prog(progname):
+def compile_prog(progname, quiet=False):
     build = ROOT / "build"
     build.mkdir(parents=True, exist_ok=True)
 
@@ -181,15 +186,15 @@ def compile_prog(progname):
         sources.append(str(util_s))
 
     run([f"{RISCV_PFX}-gcc", "-march=rv32i", "-mabi=ilp32",
-         "-nostdlib", "-ffreestanding", "-O2", "-I", "test/prog",
+         "-nostdlib", "-ffreestanding", "-O2", "-flto", "-I", "test/prog",
          "-T", "test/prog/util/link.ld",
-         "-o", str(elf), *sources])
+         "-o", str(elf), *sources], quiet=quiet)
 
     run([f"{RISCV_PFX}-objcopy",
-         "--only-section=.text", "-O", "binary", str(elf), str(ibin)])
+         "--only-section=.text", "-O", "binary", str(elf), str(ibin)], quiet=quiet)
     run([f"{RISCV_PFX}-objcopy",
          "--only-section=.rodata", "--only-section=.data", "--only-section=.bss",
-         "-O", "binary", str(elf), str(dbin)])
+         "-O", "binary", str(elf), str(dbin)], quiet=quiet)
 
     def to_mem(bin_path, mem_path):
         raw = bin_path.read_bytes() if bin_path.exists() else b""
@@ -207,7 +212,21 @@ def compile_prog(progname):
 
     to_mem(ibin, build / "inst.mem")
     to_mem(dbin, build / "data.mem")
-    print(f"==> build/inst.mem and build/data.mem written ({DRAM_WORDS} words each)")
+    if not quiet:
+        print(f"==> build/inst.mem and build/data.mem written ({DRAM_WORDS} words each)")
+
+
+def dump(progname):
+    compile_prog(progname)
+    elf      = ROOT / "build" / f"{progname}.elf"
+    lst_path = ROOT / "build" / "imem.lst"
+    print(f"==> {RISCV_PFX}-objdump...")
+    with open(lst_path, "w") as f:
+        subprocess.run(
+            [f"{RISCV_PFX}-objdump", "-d", "-M", "no-aliases", str(elf)],
+            cwd=ROOT, stdout=f, check=True,
+        )
+    print(f"==> build/imem.lst written")
 
 
 def test(progname, use_netlist=False, use_waves=False):
@@ -231,24 +250,27 @@ def test_all():
         print("No test programs found in test/prog/")
         return
 
-    build_tb()
+    build_tb(quiet=True)
 
     passed = 0
     failed = []
     for name in progs:
-        compile_prog(name)
-        rc = run_nofail([
+        compile_prog(name, quiet=True)
+        rc, output = run_capture([
             str(ROOT / "build" / "tb_top"), "++prog", "++quiet", "++name", name
         ])
         if rc == 0:
             passed += 1
+            lines = [l for l in output.splitlines() if l.strip()]
+            print(lines[-1] if lines else f"{name}: PASS")
         else:
             failed.append(name)
+            sys.stdout.write(output)
 
     total = len(progs)
-    print(f"\n==> {passed}/{total} tests passed")
+    print(f"\n{passed}/{total} tests passed")
     if failed:
-        print(f"    FAILED: {', '.join(failed)}")
+        print(f"FAILED: {', '.join(failed)}")
 
 
 def clean():
@@ -264,7 +286,7 @@ def main():
     flags = set(argv)
 
     progname = None
-    _test_flags = ("++test", "++test_syn", "++test_waves")
+    _test_flags = ("++test", "++test_syn", "++test_waves", "++dump")
     for tf in _test_flags:
         if tf in flags:
             idx = argv.index(tf)
@@ -279,18 +301,21 @@ def main():
     do_test_syn   = "++test_syn"   in flags
     do_test_waves = "++test_waves" in flags
     do_test_all   = "++test_all"   in flags
+    do_dump       = "++dump"       in flags
     do_sim        = "++sim"        in flags
     do_sim_waves  = "++sim_waves"  in flags
     do_sim_syn    = "++sim_syn"    in flags
     do_clean      = "++clean"      in flags
 
     if not (do_sim or do_sim_waves or do_sim_syn or do_clean
-            or do_test or do_test_syn or do_test_waves or do_test_all):
+            or do_test or do_test_syn or do_test_waves or do_test_all
+            or do_dump):
         print("Usage: ./run.py <mode>")
         print("  ++test <prog>       Compile and run prog against RTL core")
         print("  ++test_syn <prog>   Compile and run prog against synthesized core")
         print("  ++test_waves <prog> Compile and run prog with VCD waveform output")
         print("  ++test_all          Compile and run all programs in test/prog/")
+        print("  ++dump <prog>       Compile prog and write disassembly to build/imem.lst")
         print("  ++sim               Simulate with Verilator")
         print("  ++sim_waves         Simulate with VCD waveform output")
         print("  ++sim_syn           Synthesize modules, then simulate netlists")
@@ -300,7 +325,7 @@ def main():
     if do_clean:
         clean()
 
-    if do_sim or do_sim_waves or do_sim_syn or do_test or do_test_syn or do_test_waves or do_test_all:
+    if do_sim or do_sim_waves or do_sim_syn or do_test or do_test_syn or do_test_waves or do_test_all or do_dump:
         (ROOT / "build").mkdir(parents=True, exist_ok=True)
         log_path = ROOT / "build" / "test.log"
         orig_stdout = sys.stdout
@@ -330,6 +355,9 @@ def main():
 
             if do_test_all:
                 test_all()
+
+            if do_dump:
+                dump(progname)
         finally:
             sys.stdout = orig_stdout
             sys.stderr = orig_stderr

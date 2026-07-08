@@ -124,10 +124,11 @@ public:
     CoreRef();
     bool load_imem(const std::string& path);
     bool load_dmem(const std::string& path);
-    bool run(int max_steps = 100000);
-    uint32_t reg(int r)  const;
-    uint32_t pc()        const;
-    uint32_t mmio(int i) const;
+    bool run(int max_steps = 2000000);
+    uint32_t  reg(int r)        const;
+    uint32_t  pc()              const;
+    uint32_t  mmio(int i)       const;
+    uint64_t  insns_retired()   const;
 
 private:
     uint32_t imem_[DRAM_WORDS];
@@ -135,6 +136,7 @@ private:
     uint32_t mmio_[MMIO_WORDS];
     uint32_t pc_;
     RfRef    rf_;
+    uint64_t insns_retired_;
     bool step();
 };
 

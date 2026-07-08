@@ -16,6 +16,16 @@ static inline __attribute__((always_inline)) void puts(const char *s) {
     }
 }
 
+static inline __attribute__((always_inline)) void puth(unsigned int v) {
+    int i;
+    unsigned int d;
+    putc('0'); putc('x');
+    for (i = 28; i >= 0; i -= 4) {
+        d = (v >> i) & 0xFu;
+        putc(d < 10u ? (char)('0' + d) : (char)('a' + d - 10u));
+    }
+}
+
 static inline __attribute__((always_inline, noreturn)) void exit(void) {
     asm volatile("sw x0, -4(x0)");
     __builtin_unreachable();

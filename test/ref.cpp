@@ -494,7 +494,7 @@ uint32_t FetchRef::inst() const { return mem_[(pc_ >> 2) % mem_.size()]; }
 
 // ---- CoreRef ----
 
-CoreRef::CoreRef() : pc_(0) {
+CoreRef::CoreRef() : pc_(0), insns_retired_(0) {
     std::memset(imem_, 0, sizeof(imem_));
     std::memset(dmem_, 0, sizeof(dmem_));
     std::memset(mmio_, 0, sizeof(mmio_));
@@ -516,9 +516,10 @@ bool CoreRef::load_dmem(const std::string& path) {
     return true;
 }
 
-uint32_t CoreRef::reg(int r)  const { return rf_.read(r); }
-uint32_t CoreRef::pc()        const { return pc_; }
-uint32_t CoreRef::mmio(int i) const { return mmio_[i]; }
+uint32_t CoreRef::reg(int r)       const { return rf_.read(r); }
+uint32_t CoreRef::pc()             const { return pc_; }
+uint32_t CoreRef::mmio(int i)      const { return mmio_[i]; }
+uint64_t CoreRef::insns_retired()  const { return insns_retired_; }
 
 bool CoreRef::step() {
     uint32_t idx   = pc_ >> 2;
@@ -559,7 +560,10 @@ bool CoreRef::step() {
 }
 
 bool CoreRef::run(int max_steps) {
-    for (int i = 0; i < max_steps; i++)
+    insns_retired_ = 0;
+    for (int i = 0; i < max_steps; i++) {
+        insns_retired_++;
         if (step()) return true;
+    }
     return false;
 }

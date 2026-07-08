@@ -636,6 +636,24 @@ static int test_core(const char *imem_path, const char *dmem_path,
         }
     }
 
+    {
+        uint64_t ref_insns   = ref.insns_retired();
+        uint64_t dut_commits = dut.committed();
+        uint64_t dut_cycles  = dut.cycles();
+        double   cpi = dut_commits ? (double)dut_cycles / dut_commits : 0.0;
+
+        std::cout << "  stat   ref         dut\n";
+        std::cout << "  " << std::left << std::setw(5) << "insns"
+                  << "  " << std::right << std::setw(10) << std::dec << ref_insns
+                  << "  " << std::setw(10) << dut_commits << "\n";
+        std::cout << "  " << std::left << std::setw(5) << "cyc"
+                  << "  " << std::right << std::setw(10) << "-"
+                  << "  " << std::setw(10) << dut_cycles << "\n";
+        std::cout << "  " << std::left << std::setw(5) << "CPI"
+                  << "  " << std::right << std::setw(10) << "-"
+                  << "  " << std::fixed << std::setprecision(2) << cpi << "\n";
+    }
+
     if (!ref_ok) std::cout << test_name << ": ref FAIL (no clean exit)" << std::endl;
     if (!dut_ok) std::cout << test_name << ": dut FAIL (no clean exit)" << std::endl;
     if (!errors) std::cout << test_name << ": PASS" << std::endl;

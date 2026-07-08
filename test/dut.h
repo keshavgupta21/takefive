@@ -119,13 +119,17 @@ public:
     bool     load_imem(const std::string& path);
     bool     load_dmem(const std::string& path);
     bool     run(int max_steps = 1000000);
-    uint32_t mmio(int i) const;
+    uint32_t mmio(int i)      const;
+    uint64_t committed()      const;
+    uint64_t cycles()         const;
 
 private:
     Vcore_wrap *model_;
     uint32_t    imem_[DRAM_WORDS];
     uint32_t    dmem_[DRAM_WORDS];
     uint32_t    mmio_[MMIO_WORDS];
+    uint64_t    committed_;
+    uint64_t    cycles_;
 
     void tick();
     void program();

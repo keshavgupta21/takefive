@@ -161,3 +161,4 @@ FENCE (OPC_FENCE, funct3 = 0) is decoded as valid but neither the execute nor th
 - Investigate the dcache req → hit → write critical path.
 - Add CPI reporting to tests.
 - Add exceptions/interrupts at-least for illegal instructions.
+- Add branch penalty, cache miss, cache hit, etc counters.

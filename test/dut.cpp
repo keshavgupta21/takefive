@@ -390,7 +390,7 @@ bool     DCacheDut::rdy()      const { return model_->mem_rdy;      }
 
 // ---- CoreDut ----
 
-CoreDut::CoreDut() : model_(new Vcore_wrap) {
+CoreDut::CoreDut() : model_(new Vcore_wrap), committed_(0), cycles_(0) {
     std::memset(imem_, 0, sizeof(imem_));
     std::memset(dmem_, 0, sizeof(dmem_));
     std::memset(mmio_, 0, sizeof(mmio_));
@@ -469,10 +469,15 @@ void CoreDut::program() {
     model_->dmem_wr_en = 0;
 }
 
-uint32_t CoreDut::mmio(int i) const { return mmio_[i]; }
+uint32_t CoreDut::mmio(int i)  const { return mmio_[i]; }
+uint64_t CoreDut::committed()  const { return committed_; }
+uint64_t CoreDut::cycles()     const { return cycles_; }
 
 bool CoreDut::run(int max_steps) {
     program();
+
+    committed_ = 0;
+    cycles_    = 0;
 
     model_->rst       = 0;
     model_->dbg_pause = 0;
@@ -489,6 +494,8 @@ bool CoreDut::run(int max_steps) {
         pending_rsp = false;
 
         tick();
+        cycles_++;
+        if (model_->dbg_commit) committed_++;
 
         if (model_->mmio_req_vld) {
             uint32_t addr = model_->mmio_req_addr;
