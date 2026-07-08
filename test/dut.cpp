@@ -1,4 +1,6 @@
 #include "dut.h"
+#include <cstring>
+#include <fstream>
 #include <vector>
 #include <functional>
 
@@ -121,50 +123,6 @@ ExeResult ExeDut::result() const {
     return r;
 }
 
-// ---- MemDut ----
-
-MemDut::MemDut() : model_(new Vmem_wrap) {
-    model_->inst_vld    = 0;
-    model_->inst_opc    = 0;
-    model_->inst_rd     = 0;
-    model_->inst_rs1    = 0;
-    model_->inst_rs2    = 0;
-    model_->inst_funct3 = 0;
-    model_->inst_funct7 = 0;
-    model_->inst_imm    = 0;
-    model_->rval1       = 0;
-    model_->rval2       = 0;
-    model_->eval();
-}
-
-MemDut::~MemDut() {
-    model_->final();
-    delete model_;
-}
-
-void MemDut::eval(const Decoded& inst, uint32_t rval1, uint32_t rval2) {
-    model_->inst_vld    = inst.vld;
-    model_->inst_opc    = inst.opcode;
-    model_->inst_rd     = inst.rd;
-    model_->inst_rs1    = inst.rs1;
-    model_->inst_rs2    = inst.rs2;
-    model_->inst_funct3 = inst.funct3;
-    model_->inst_funct7 = inst.funct7;
-    model_->inst_imm    = inst.imm;
-    model_->rval1       = rval1;
-    model_->rval2       = rval2;
-    model_->eval();
-}
-
-MemReqResult MemDut::result() const {
-    MemReqResult r;
-    r.vld  = model_->mem_req_vld;
-    r.addr = model_->mem_req_addr;
-    r.wen  = model_->mem_req_wen;
-    r.data = model_->mem_req_data;
-    return r;
-}
-
 // ---- BranchDut ----
 
 BranchDut::BranchDut() : model_(new Vbranch_wrap) {
@@ -281,106 +239,6 @@ void FetchDut::clear_write() {
 bool FetchDut::f_vld() const { return model_->f_vld; }
 uint32_t FetchDut::f_pc() const { return model_->f_pc; }
 uint32_t FetchDut::f_inst() const { return model_->f_inst; }
-
-// ---- CoreDut ----
-
-CoreDut::CoreDut() : model_(new Vcore_wrap) {
-    model_->clk            = 0;
-    model_->rst            = 1;
-    model_->imem_wr_addr   = 0;
-    model_->imem_wr_data   = 0;
-    model_->imem_wr_en     = 0;
-    model_->dmem_wr_addr   = 0;
-    model_->dmem_wr_data   = 0;
-    model_->dmem_wr_en     = 0;
-    model_->dbg_pause      = 0;
-    model_->dbg_rf_rd_rs   = 0;
-    model_->dbg_rf_wr_en   = 0;
-    model_->dbg_rf_wr_rd   = 0;
-    model_->dbg_rf_wr_data = 0;
-    model_->eval();
-#ifdef WAVES
-    if (g_trace) {
-        model_->trace(g_trace, 99);
-        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
-    }
-#endif
-}
-
-CoreDut::~CoreDut() {
-    model_->final();
-    delete model_;
-}
-
-void CoreDut::tick() {
-    model_->clk = 0;
-    model_->eval();
-#ifdef WAVES
-    if (g_trace) g_trace->dump(g_time++);
-#endif
-    model_->clk = 1;
-    model_->eval();
-#ifdef WAVES
-    if (g_trace) g_trace->dump(g_time++);
-#endif
-}
-
-void CoreDut::eval() {
-    model_->eval();
-}
-
-void CoreDut::set_rst(bool r) {
-    model_->rst = r;
-}
-
-void CoreDut::set_pause(bool p) {
-    model_->dbg_pause = p;
-    if (!p) {
-        model_->imem_wr_en   = 0;
-        model_->dmem_wr_en   = 0;
-        model_->dbg_rf_wr_en = 0;
-    }
-    model_->eval();
-}
-
-void CoreDut::write(uint32_t addr, uint32_t data) {
-    model_->imem_wr_en   = 1;
-    model_->imem_wr_addr = addr;
-    model_->imem_wr_data = data;
-    model_->eval();
-}
-
-void CoreDut::write_dmem(uint32_t addr, uint32_t data) {
-    model_->dmem_wr_en   = 1;
-    model_->dmem_wr_addr = addr;
-    model_->dmem_wr_data = data;
-    model_->eval();
-}
-
-void CoreDut::write_reg(uint8_t rd, uint32_t data) {
-    model_->dbg_rf_wr_en   = 1;
-    model_->dbg_rf_wr_rd   = rd;
-    model_->dbg_rf_wr_data = data;
-    model_->eval();
-}
-
-uint32_t CoreDut::read_reg(uint8_t rs) {
-    model_->dbg_rf_rd_rs = rs;
-    model_->eval();
-    return model_->dbg_rf_rd_val;
-}
-
-uint32_t CoreDut::pc() {
-    return model_->dbg_pc;
-}
-
-bool CoreDut::commit() {
-    return model_->dbg_commit;
-}
-
-bool CoreDut::pipe_busy() {
-    return model_->dbg_pipe_busy;
-}
 
 // ---- ICacheDut ----
 
@@ -527,3 +385,125 @@ bool     DCacheDut::rsp_vld()  const { return model_->mem_rsp_vld;  }
 uint32_t DCacheDut::rsp_data() const { return model_->mem_rsp_data; }
 uint32_t DCacheDut::rsp_uid()  const { return model_->mem_rsp_uid;  }
 bool     DCacheDut::rdy()      const { return model_->mem_rdy;      }
+
+// ---- CoreDut ----
+
+CoreDut::CoreDut() : model_(new Vcore_wrap) {
+    std::memset(imem_, 0, sizeof(imem_));
+    std::memset(dmem_, 0, sizeof(dmem_));
+    std::memset(mmio_, 0, sizeof(mmio_));
+#ifdef WAVES
+    if (g_trace) {
+        model_->trace(g_trace, 99);
+        g_trace_cbs.push_back([this]() { model_->trace(g_trace, 99); });
+    }
+#endif
+
+    model_->clk          = 0;
+    model_->rst          = 1;
+    model_->dbg_pause    = 1;
+    model_->imem_wr_addr = 0;
+    model_->imem_wr_data = 0;
+    model_->imem_wr_en   = 0;
+    model_->dmem_wr_addr = 0;
+    model_->dmem_wr_data = 0;
+    model_->dmem_wr_en   = 0;
+    model_->mmio_rsp_vld  = 0;
+    model_->mmio_rsp_data = 0;
+    model_->mmio_rsp_uid  = 0;
+    model_->mmio_rdy      = 0;
+    model_->eval();
+}
+
+CoreDut::~CoreDut() {
+    model_->final();
+    delete model_;
+}
+
+bool CoreDut::load_imem(const std::string& path) {
+    std::ifstream f(path);
+    if (!f) return false;
+    for (int i = 0; i < DRAM_WORDS; i++)
+        if (!(f >> std::hex >> imem_[i])) break;
+    return true;
+}
+
+bool CoreDut::load_dmem(const std::string& path) {
+    std::ifstream f(path);
+    if (!f) return false;
+    for (int i = 0; i < DRAM_WORDS; i++)
+        if (!(f >> std::hex >> dmem_[i])) break;
+    return true;
+}
+
+void CoreDut::tick() {
+    model_->clk = 0;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
+    model_->clk = 1;
+    model_->eval();
+#ifdef WAVES
+    if (g_trace) g_trace->dump(g_time++);
+#endif
+}
+
+void CoreDut::program() {
+    for (int i = 0; i < DRAM_WORDS; i++) {
+        model_->imem_wr_en   = 1;
+        model_->imem_wr_addr = i * 4;
+        model_->imem_wr_data = imem_[i];
+        tick();
+    }
+    model_->imem_wr_en = 0;
+
+    for (int i = 0; i < DRAM_WORDS; i++) {
+        model_->dmem_wr_en   = 1;
+        model_->dmem_wr_addr = i * 4;
+        model_->dmem_wr_data = dmem_[i];
+        tick();
+    }
+    model_->dmem_wr_en = 0;
+}
+
+uint32_t CoreDut::mmio(int i) const { return mmio_[i]; }
+
+bool CoreDut::run(int max_steps) {
+    program();
+
+    model_->rst       = 0;
+    model_->dbg_pause = 0;
+    model_->mmio_rdy  = 1;
+
+    bool     pending_rsp  = false;
+    uint32_t pending_data = 0;
+    uint32_t pending_uid  = 0;
+
+    for (int step = 0; step < max_steps; step++) {
+        model_->mmio_rsp_vld  = pending_rsp ? 1 : 0;
+        model_->mmio_rsp_data = pending_data;
+        model_->mmio_rsp_uid  = pending_uid;
+        pending_rsp = false;
+
+        tick();
+
+        if (model_->mmio_req_vld) {
+            uint32_t addr = model_->mmio_req_addr;
+            if (model_->mmio_req_wen) {
+                if (addr == 0xFFFFFFFC) {
+                    model_->rst       = 1;
+                    model_->dbg_pause = 1;
+                    model_->eval();
+                    return true;
+                }
+                mmio_[(addr & 0xFFu) >> 2] = model_->mmio_req_data;
+            } else {
+                pending_rsp  = true;
+                pending_data = mmio_[(addr & 0xFFu) >> 2];
+                pending_uid  = model_->mmio_req_uid;
+            }
+        }
+    }
+    return false;
+}

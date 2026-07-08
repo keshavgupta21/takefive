@@ -62,7 +62,9 @@ module delay_mem (
                 dly_cnt     <= dly_cnt - 1;
             end
         end else if (accept) begin
+`ifndef SYNTHESIS
             if (oob) $warning("delay_mem: OOB address 0x%08x", mem_req.addr);
+`endif
             lat_oob <= oob;
             if (req_cnt == 4'd9) begin
                 busy        <= 1;

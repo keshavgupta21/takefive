@@ -1,6 +1,8 @@
 `include "common.svh"
 
-module dram_mem (
+module dram_mem #(
+    parameter logic [31:0] BASE = 32'h0
+) (
     input  logic                                     clk,
     input  logic                                     rst,
 
@@ -36,12 +38,12 @@ module dram_mem (
     assign idx      = dram_req.addr[LWIDTH+AWIDTH+1:LWIDTH+2];
     assign dbg_line = dbg_req.addr[LWIDTH+AWIDTH+1:LWIDTH+2];
     assign dbg_word = dbg_req.addr[LWIDTH+1:2];
-    assign oob      = dram_req.vld && (dram_req.addr[31:LWIDTH+AWIDTH+2] != '0);
+    assign oob      = dram_req.vld && (dram_req.addr[31:LWIDTH+AWIDTH+2] != BASE[31:LWIDTH+AWIDTH+2]);
     assign accept   = dram_req.vld && !busy;
 
     always_ff @(posedge clk) begin
-        if (busy && lat_wen && dly_cnt == 5'd1 && !lat_oob) ram[lat_idx]            <= lat_data;
-        if (busy && !lat_wen)                                dram_rsp.data            <= lat_oob ? '0 : ram[lat_idx];
+        if (busy && lat_wen && dly_cnt == 5'd1 && !lat_oob) ram[lat_idx]           <= lat_data;
+        if (busy && !lat_wen)                                dram_rsp.data           <= lat_oob ? '0 : ram[lat_idx];
         if (dbg_req.vld && dbg_req.wen)                     ram[dbg_line][dbg_word] <= dbg_req.data;
     end
 

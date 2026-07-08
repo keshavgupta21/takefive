@@ -1,5 +1,7 @@
 #include "ref.h"
+#include <cstring>
 #include <deque>
+#include <fstream>
 #include <iomanip>
 #include <sstream>
 
@@ -400,48 +402,6 @@ ExeResult execute(uint32_t pc, const Decoded& inst,
     return r;
 }
 
-// ---- MemReqResult ----
-
-bool MemReqResult::operator==(const MemReqResult& o) const {
-    return vld == o.vld && addr == o.addr && wen == o.wen && data == o.data;
-}
-
-bool MemReqResult::operator!=(const MemReqResult& o) const { return !(*this == o); }
-
-std::ostream& operator<<(std::ostream& os, const MemReqResult& r) {
-    os << "vld=" << r.vld
-       << " addr=0x" << std::hex << std::setfill('0')
-       << std::setw(8) << r.addr
-       << " wen=" << r.wen
-       << " data=0x" << std::setw(8) << r.data << std::dec;
-    return os;
-}
-
-MemReqResult mem_eval(const Decoded& inst, uint32_t rval1, uint32_t rval2) {
-    MemReqResult r;
-    r.vld  = false;
-    r.addr = rval1 + inst.imm;
-    r.wen  = false;
-    r.data = rval2;
-
-    if (!inst.vld) return r;
-
-    switch (inst.opcode) {
-        case 0x03: // LOAD
-            r.vld = true;
-            r.wen = false;
-            break;
-        case 0x23: // STORE
-            r.vld = true;
-            r.wen = true;
-            break;
-        default:
-            break;
-    }
-
-    return r;
-}
-
 // ---- NxtPcResult ----
 
 bool NxtPcResult::operator==(const NxtPcResult& o) const {
@@ -532,83 +492,74 @@ uint32_t FetchRef::pc() const { return pc_; }
 
 uint32_t FetchRef::inst() const { return mem_[(pc_ >> 2) % mem_.size()]; }
 
-// ---- DmemRef ----
-
-DmemRef::DmemRef(size_t depth) : mem_(depth, 0) {}
-
-void DmemRef::reset() { std::fill(mem_.begin(), mem_.end(), 0); }
-
-uint32_t DmemRef::read(uint32_t addr) const {
-    return mem_[(addr >> 2) % mem_.size()];
-}
-
-void DmemRef::write(uint32_t addr, uint32_t data) {
-    mem_[(addr >> 2) % mem_.size()] = data;
-}
-
 // ---- CoreRef ----
 
-CoreRef::CoreRef(size_t depth) : fetch_(depth), dmem_(depth), stats_{} {}
-
-void CoreRef::reset() {
-    fetch_.reset();
-    dmem_.reset();
-    stats_ = {};
+CoreRef::CoreRef() : pc_(0) {
+    std::memset(imem_, 0, sizeof(imem_));
+    std::memset(dmem_, 0, sizeof(dmem_));
+    std::memset(mmio_, 0, sizeof(mmio_));
 }
 
-void CoreRef::write_imem(uint32_t addr, uint32_t data) {
-    fetch_.write(addr, data);
+bool CoreRef::load_imem(const std::string& path) {
+    std::ifstream f(path);
+    if (!f) return false;
+    for (int i = 0; i < DRAM_WORDS; i++)
+        if (!(f >> std::hex >> imem_[i])) break;
+    return true;
 }
 
-void CoreRef::write_reg(uint8_t rd, uint32_t data) {
-    rf_.write(rd, true, data);
+bool CoreRef::load_dmem(const std::string& path) {
+    std::ifstream f(path);
+    if (!f) return false;
+    for (int i = 0; i < DRAM_WORDS; i++)
+        if (!(f >> std::hex >> dmem_[i])) break;
+    return true;
 }
 
-void CoreRef::tick() {
-    Decoded d = decode(fetch_.inst());
+uint32_t CoreRef::reg(int r)  const { return rf_.read(r); }
+uint32_t CoreRef::pc()        const { return pc_; }
+uint32_t CoreRef::mmio(int i) const { return mmio_[i]; }
+
+bool CoreRef::step() {
+    uint32_t idx   = pc_ >> 2;
+    uint32_t instr = (idx < (uint32_t)DRAM_WORDS) ? imem_[idx] : 0;
+
+    Decoded  d     = decode(instr);
     uint32_t rval1 = rf_.read(d.rs1);
     uint32_t rval2 = rf_.read(d.rs2);
-    MemReqResult mreq = mem_eval(d, rval1, rval2);
-    uint32_t dmem_data = dmem_.read(mreq.addr);
-    ExeResult r = execute(fetch_.pc(), d, rval1, rval2, dmem_data);
-    NxtPcResult br = branch_eval(fetch_.pc(), d, rval1, rval2);
-    rf_.write(r.rfwb_rd, r.rfwb_wen, r.rfwb_wdata);
-    if (mreq.vld && mreq.wen) dmem_.write(mreq.addr, mreq.data);
-    fetch_.tick(br.vld, br.nxt_pc);
 
-    stats_.cycles++;
+    uint32_t dmem_data = 0;
     if (d.vld) {
-        stats_.valid++;
-        switch (d.opcode) {
-            case 0x33: case 0x13: stats_.alu++;               break;
-            case 0x63: if (br.vld) stats_.branches_taken++;
-                       else        stats_.branches_not_taken++; break;
-            case 0x6F: case 0x67: stats_.jumps++;              break;
-            case 0x37: case 0x17: stats_.lui_auipc++;          break;
-            case 0x03:            stats_.loads++;               break;
-            case 0x23:            stats_.stores++;              break;
-            default: break;
+        if (d.opcode == 0x03) {                          // LOAD
+            uint32_t addr = rval1 + (int32_t)d.imm;
+            if (addr >= 0xFFFFFF00u) {
+                dmem_data = mmio_[(addr & 0xFFu) >> 2];
+            } else if (addr >= 0x80000000u) {
+                uint32_t widx = (addr - 0x80000000u) >> 2;
+                if (widx < (uint32_t)DRAM_WORDS) dmem_data = dmem_[widx];
+            }
+        } else if (d.opcode == 0x23) {                   // STORE
+            uint32_t addr = rval1 + (int32_t)d.imm;
+            if (addr >= 0xFFFFFF00u) {
+                if (addr == 0xFFFFFFFC) return true;     // exit
+                mmio_[(addr & 0xFFu) >> 2] = rval2;
+            } else if (addr >= 0x80000000u) {
+                uint32_t widx = (addr - 0x80000000u) >> 2;
+                if (widx < (uint32_t)DRAM_WORDS) dmem_[widx] = rval2;
+            }
         }
     }
-    if (r.rfwb_wen && r.rfwb_rd != 0) stats_.rf_writes++;
+
+    ExeResult    res = execute(pc_, d, rval1, rval2, dmem_data);
+    rf_.write(res.rfwb_rd, res.rfwb_wen, res.rfwb_wdata);
+
+    NxtPcResult npc = branch_eval(pc_, d, rval1, rval2);
+    pc_ = npc.vld ? npc.nxt_pc : pc_ + 4;
+    return false;
 }
 
-uint32_t CoreRef::pc() const { return fetch_.pc(); }
-
-uint32_t CoreRef::read_reg(uint8_t rs) const { return rf_.read(rs); }
-
-const CoreRef::Stats& CoreRef::stats() const { return stats_; }
-
-void CoreRef::print_stats() const {
-    auto &s = stats_;
-    std::cout << "  cycles:              " << s.cycles << "\n"
-              << "  valid:               " << s.valid << "\n"
-              << "  alu:                 " << s.alu << "\n"
-              << "  branches_taken:      " << s.branches_taken << "\n"
-              << "  branches_not_taken:  " << s.branches_not_taken << "\n"
-              << "  jumps:               " << s.jumps << "\n"
-              << "  lui_auipc:           " << s.lui_auipc << "\n"
-              << "  loads:               " << s.loads << "\n"
-              << "  stores:              " << s.stores << "\n"
-              << "  rf_writes:           " << s.rf_writes << "\n";
+bool CoreRef::run(int max_steps) {
+    for (int i = 0; i < max_steps; i++)
+        if (step()) return true;
+    return false;
 }

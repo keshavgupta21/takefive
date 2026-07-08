@@ -2,9 +2,11 @@
 #include <cstdint>
 #include <iostream>
 #include <random>
+#include <string>
 #include <vector>
 
 static constexpr int DRAM_WORDS = 1024;
+static constexpr int MMIO_WORDS = 64;   // 256-byte MMIO window / 4 bytes per word
 
 struct Decoded {
     bool     vld;
@@ -60,20 +62,6 @@ uint32_t alu(uint32_t op_a, uint32_t op_b, uint8_t funct3, bool sub, bool ari);
 ExeResult execute(uint32_t pc, const Decoded& inst,
                   uint32_t rval1, uint32_t rval2, uint32_t dmem_data);
 
-struct MemReqResult {
-    bool     vld;
-    uint32_t addr;
-    bool     wen;
-    uint32_t data;
-
-    bool operator==(const MemReqResult& o) const;
-    bool operator!=(const MemReqResult& o) const;
-};
-
-std::ostream& operator<<(std::ostream& os, const MemReqResult& r);
-
-MemReqResult mem_eval(const Decoded& inst, uint32_t rval1, uint32_t rval2);
-
 struct NxtPcResult {
     bool     vld;
     uint32_t pc;
@@ -100,49 +88,6 @@ public:
 private:
     uint32_t pc_;
     std::vector<uint32_t> mem_;
-};
-
-class DmemRef {
-public:
-    DmemRef(size_t depth = DRAM_WORDS);
-    void reset();
-    uint32_t read(uint32_t addr) const;
-    void write(uint32_t addr, uint32_t data);
-
-private:
-    std::vector<uint32_t> mem_;
-};
-
-class CoreRef {
-public:
-    struct Stats {
-        uint64_t cycles;
-        uint64_t valid;
-        uint64_t alu;
-        uint64_t branches_taken;
-        uint64_t branches_not_taken;
-        uint64_t jumps;
-        uint64_t lui_auipc;
-        uint64_t loads;
-        uint64_t stores;
-        uint64_t rf_writes;
-    };
-
-    CoreRef(size_t depth = DRAM_WORDS);
-    void reset();
-    void write_imem(uint32_t addr, uint32_t data);
-    void write_reg(uint8_t rd, uint32_t data);
-    void tick();
-    uint32_t pc() const;
-    uint32_t read_reg(uint8_t rs) const;
-    const Stats& stats() const;
-    void print_stats() const;
-
-private:
-    FetchRef fetch_;
-    RfRef    rf_;
-    DmemRef  dmem_;
-    Stats    stats_;
 };
 
 inline uint32_t enc_r(uint8_t f7, uint8_t rs2, uint8_t rs1, uint8_t f3,
@@ -173,6 +118,25 @@ inline uint32_t enc_b(int32_t imm, uint8_t rs2, uint8_t rs1, uint8_t f3,
 inline uint32_t enc_u(uint32_t imm, uint8_t rd, uint8_t op) {
     return (imm & 0xFFFFF000) | (rd << 7) | op;
 }
+
+class CoreRef {
+public:
+    CoreRef();
+    bool load_imem(const std::string& path);
+    bool load_dmem(const std::string& path);
+    bool run(int max_steps = 100000);
+    uint32_t reg(int r)  const;
+    uint32_t pc()        const;
+    uint32_t mmio(int i) const;
+
+private:
+    uint32_t imem_[DRAM_WORDS];
+    uint32_t dmem_[DRAM_WORDS];
+    uint32_t mmio_[MMIO_WORDS];
+    uint32_t pc_;
+    RfRef    rf_;
+    bool step();
+};
 
 inline uint32_t enc_j(int32_t imm, uint8_t rd, uint8_t op) {
     uint32_t i = imm & 0x1FFFFF;

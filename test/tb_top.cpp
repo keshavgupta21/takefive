@@ -299,54 +299,6 @@ static int test_exe_random(ExeDut &dut, int n) {
     return report("exe_random", errors, n);
 }
 
-static int test_mem_directed(MemDut &dut) {
-    struct Test {
-        const char *name;
-        Decoded  inst;
-        uint32_t rval1;
-        uint32_t rval2;
-    };
-
-    static const Test tests[] = {
-        // ---- LW ----
-        {"LW base+0",    make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 0),    0x00001000, 0},
-        {"LW base+imm",  make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 100),  0x00000800, 0},
-        {"LW neg imm",   make_inst(1, 0x03, 1, 2, 0, 2, 0x00, 0xFFFFFFFC), 0x00000100, 0},
-
-        // ---- SW ----
-        {"SW base+0",    make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 0),    0x00002000, 0xDEADBEEF},
-        {"SW base+imm",  make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 200),  0x00000400, 0xCAFEBABE},
-        {"SW neg imm",   make_inst(1, 0x23, 0, 2, 3, 2, 0x00, 0xFFFFFFF0), 0x00000100, 0x12345678},
-
-        // ---- Non-memory opcodes ----
-        {"ADD no req",   make_inst(1, 0x33, 1, 2, 3, 0, 0x00, 0),    0x0000000A, 0x00000014},
-        {"LUI no req",   make_inst(1, 0x37, 1, 0, 0, 0, 0x00, 0xDEADB000), 0, 0},
-        {"BEQ no req",   make_inst(1, 0x63, 0, 1, 2, 0, 0x00, 8),    0x00000005, 0x00000005},
-        {"JAL no req",   make_inst(1, 0x6F, 1, 0, 0, 0, 0x00, 1024), 0, 0},
-
-        // ---- Invalid instruction ----
-        {"Invalid",      make_inst(0, 0x03, 1, 2, 0, 2, 0x00, 0),    0x00001000, 0},
-    };
-
-    int errors = 0;
-    int n = sizeof(tests) / sizeof(tests[0]);
-
-    for (int i = 0; i < n; i++) {
-        dut.eval(tests[i].inst, tests[i].rval1, tests[i].rval2);
-        MemReqResult ref = mem_eval(tests[i].inst, tests[i].rval1, tests[i].rval2);
-        MemReqResult got = dut.result();
-
-        if (got != ref) {
-            std::cerr << "FAIL mem_directed [" << tests[i].name << "]\n"
-                      << "  expected: " << ref << "\n"
-                      << "  got:      " << got << "\n";
-            errors++;
-        }
-    }
-
-    return report("mem_directed", errors, n);
-}
-
 static int test_branch_directed(BranchDut &dut) {
     struct Test {
         const char *name;
@@ -517,160 +469,6 @@ static int test_fetch_random(FetchDut &dut, int n_rounds) {
     return report("fetch_random", errors, n_rounds);
 }
 
-static void dump_pc_trace(const std::vector<uint32_t> &pcs,
-                          const std::vector<uint32_t> &prog, int depth) {
-    uint32_t addr_mask = (depth * 4) - 1;
-    std::cerr << "--- Expected PC trace (" << pcs.size() << " instructions) ---\n";
-    for (size_t i = 0; i < pcs.size(); i++) {
-        uint32_t eff = pcs[i] & addr_mask;
-        int word_idx = eff / 4;
-        Decoded d = decode(prog[word_idx]);
-        std::cerr << "  [" << i << "] pc=0x" << std::hex << std::setfill('0')
-                  << std::setw(8) << pcs[i]
-                  << " eff=0x" << std::setw(4) << eff
-                  << "  " << std::dec << disasm(d) << "\n";
-    }
-    std::cerr << "---\n";
-}
-
-static void dump_program(const std::vector<uint32_t> &prog, int depth) {
-    std::cerr << "--- Program (" << depth << " instructions) ---\n";
-    for (int i = 0; i < depth; i++) {
-        Decoded d = decode(prog[i]);
-        std::cerr << "  0x" << std::hex << std::setfill('0') << std::setw(4)
-                  << (i * 4) << ": "
-                  << std::setw(8) << prog[i] << "  "
-                  << std::dec << disasm(d) << "\n";
-    }
-    std::cerr << "---\n";
-}
-
-static int test_core_random(CoreDut &dut, const char *name, int n_rounds,
-                            int hazard_dist, bool no_branches,
-                            bool short_prog = false, bool no_mem = false) {
-    const int depth = DRAM_WORDS;
-    std::mt19937 rng(200);
-    std::uniform_int_distribution<int> len_dist(short_prog ? 5 : 32,
-                                                short_prog ? 10 : DRAM_WORDS);
-
-    CoreRef ref(depth);
-    CoreRef::Stats total = {};
-    uint64_t total_hw_cycles = 0;
-    std::uniform_int_distribution<uint32_t> val_dist;
-    std::vector<uint32_t> prog(depth);
-
-    for (int r = 0; r < n_rounds; r++) {
-        waves_reset();
-        int n = len_dist(rng);
-
-        dut.set_rst(true);
-        dut.tick();
-        dut.set_pause(true);
-
-        for (int i = 0; i < depth; i++) {
-            prog[i] = pack(gen_random_inst(rng, hazard_dist, no_branches, no_mem));
-            ref.write_imem(i * 4, prog[i]);
-            dut.write(i * 4, prog[i]);
-            dut.write_dmem(i * 4, 0);
-            dut.tick();
-        }
-
-        for (int i = 1; i < 32; i++) {
-            uint32_t val = val_dist(rng);
-            ref.write_reg(i, val);
-            dut.write_reg(i, val);
-            dut.tick();
-        }
-
-        dut.set_pause(false);
-        dut.tick();
-        dut.set_rst(false);
-        ref.reset();
-
-        std::vector<uint32_t> ref_pcs(n);
-        for (int i = 0; i < n; i++) {
-            ref_pcs[i] = ref.pc();
-            ref.tick();
-        }
-
-        int retired = 0;
-        int hw_cycles = 0;
-        bool timed_out = false;
-        for (; retired < n; hw_cycles++) {
-            if (hw_cycles >= n * 100) {
-                std::cerr << "FAIL " << name << " [round=" << r
-                          << "] timeout: retired " << retired
-                          << " / " << n << " after " << hw_cycles
-                          << " cycles\n";
-                timed_out = true;
-                break;
-            }
-            dut.tick();
-            dut.eval();
-            if (dut.commit()) retired++;
-        }
-
-        if (timed_out) {
-            dump_pc_trace(ref_pcs, prog, depth);
-            dump_program(prog, depth);
-            return report(name, 1, r + 1);
-        }
-
-        dut.set_pause(true);
-        dut.eval();
-
-        bool round_fail = false;
-
-        for (int i = 0; i < 32; i++) {
-            uint32_t exp = ref.read_reg(i);
-            uint32_t got = dut.read_reg(i);
-            if (got != exp) {
-                std::cerr << "FAIL " << name << " [round=" << r
-                          << " n=" << n << "] x" << i
-                          << "  expected=0x" << std::hex << std::setfill('0')
-                          << std::setw(8) << exp
-                          << "  got=0x" << std::setw(8) << got
-                          << std::dec << "\n";
-                round_fail = true;
-            }
-        }
-
-        if (round_fail) {
-            dump_pc_trace(ref_pcs, prog, depth);
-            dump_program(prog, depth);
-            return report(name, 1, r + 1);
-        }
-
-        total_hw_cycles          += hw_cycles;
-        auto &s = ref.stats();
-        total.cycles             += s.cycles;
-        total.valid              += s.valid;
-        total.alu                += s.alu;
-        total.branches_taken     += s.branches_taken;
-        total.branches_not_taken += s.branches_not_taken;
-        total.jumps              += s.jumps;
-        total.lui_auipc          += s.lui_auipc;
-        total.loads              += s.loads;
-        total.stores             += s.stores;
-        total.rf_writes          += s.rf_writes;
-    }
-
-    int rc = report(name, 0, n_rounds);
-    double cpi = total.valid ? (double)total_hw_cycles / total.valid : 0.0;
-    std::cout << "  instructions:        " << total.valid << "\n"
-              << "  hw_cycles:           " << total_hw_cycles << "\n"
-              << "  CPI:                 " << std::fixed << std::setprecision(2) << cpi << "\n"
-              << "  alu:                 " << total.alu << "\n"
-              << "  branches_taken:      " << total.branches_taken << "\n"
-              << "  branches_not_taken:  " << total.branches_not_taken << "\n"
-              << "  jumps:               " << total.jumps << "\n"
-              << "  lui_auipc:           " << total.lui_auipc << "\n"
-              << "  loads:               " << total.loads << "\n"
-              << "  stores:              " << total.stores << "\n"
-              << "  rf_writes:           " << total.rf_writes << "\n";
-    return rc;
-}
-
 static int test_icache_random(ICacheDut &dut, int n) {
     const int DEPTH = DRAM_WORDS;
     const int TOTAL = DEPTH;
@@ -793,28 +591,83 @@ static int test_dcache_random(DCacheDut &dut, int n) {
     return rc;
 }
 
+static int test_core(const char *imem_path, const char *dmem_path) {
+    CoreRef ref;
+    if (!ref.load_imem(imem_path)) {
+        std::cout << "test_core: SKIP (" << imem_path << " not found)" << std::endl;
+        return 0;
+    }
+    ref.load_dmem(dmem_path);
+
+    CoreDut dut;
+    dut.load_imem(imem_path);
+    dut.load_dmem(dmem_path);
+
+#ifdef WAVES
+    waves_open("build/waves.vcd");
+#endif
+
+    bool ref_ok = ref.run();
+    bool dut_ok = dut.run();
+
+    std::cout << "  reg    ref         dut\n";
+    for (int i = 0; i < 32; i++) {
+        uint32_t r = ref.mmio(i);
+        uint32_t d = dut.mmio(i);
+        char name[5];
+        std::snprintf(name, sizeof(name), "x%d", i);
+        std::cout << "  " << std::left  << std::setw(5) << name
+                  << "  0x" << std::right << std::hex << std::setfill('0') << std::setw(8) << r
+                  << "  0x" << std::setw(8) << d
+                  << std::setfill(' ') << std::dec
+                  << (r != d ? "  ***" : "")
+                  << "\n";
+    }
+
+    int errors = 0;
+    if (!ref_ok) { std::cout << "test_core: ref FAIL (no clean exit)" << std::endl; errors++; }
+    if (!dut_ok) { std::cout << "test_core: dut FAIL (no clean exit)" << std::endl; errors++; }
+
+    for (int i = 0; i < MMIO_WORDS; i++) {
+        if (ref.mmio(i) != dut.mmio(i)) {
+            errors++;
+        }
+    }
+
+    if (!errors) std::cout << "test_core: PASS" << std::endl;
+    return errors;
+}
+
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
-    bool syn = false;
+    bool syn   = false;
     bool waves = false;
+    bool prog  = false;
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "++syn")   syn   = true;
         if (std::string(argv[i]) == "++waves") waves = true;
+        if (std::string(argv[i]) == "++prog")  prog  = true;
     }
 
 #ifdef WAVES
     if (waves) waves_init();
 #endif
 
+    if (prog) {
+        int errors = test_core("build/inst.mem", "build/data.mem");
+#ifdef WAVES
+        if (waves) waves_close();
+#endif
+        return errors ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
+
     int errors = 0;
 
     DecDut dec_dut;
     ExeDut exe_dut;
-    MemDut mem_dut;
     BranchDut branch_dut;
     FetchDut fetch_dut;
-    CoreDut core_dut;
     ICacheDut icache_dut;
     DCacheDut dcache_dut;
 
@@ -826,18 +679,10 @@ int main(int argc, char **argv) {
     waves_reset(); errors += test_dec_random(dec_dut, syn ? 100 : 10000000);
     waves_reset(); errors += test_exe_directed(exe_dut);
     waves_reset(); errors += test_exe_random(exe_dut, syn ? 100 : 1000000);
-    waves_reset(); errors += test_mem_directed(mem_dut);
     waves_reset(); errors += test_branch_directed(branch_dut);
     waves_reset(); errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
     waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
     waves_reset(); errors += test_dcache_random(dcache_dut, syn ? 1000 : 1000000);
-    waves_reset(); errors += test_core_random(core_dut, "core_alu_only",        syn ? 100 : 10000, 3, true,  true,  true);
-    waves_reset(); errors += test_core_random(core_dut, "core_short_no_branch", syn ? 100 : 10000, 3, true,  true,  false);
-    waves_reset(); errors += test_core_random(core_dut, "core_short_no_hazard", syn ? 100 : 10000, 3, false, true,  false);
-    waves_reset(); errors += test_core_random(core_dut, "core_short_random",    syn ? 100 : 10000, 0, false, true,  false);
-    waves_reset(); errors += test_core_random(core_dut, "core_no_branch",       syn ? 100 : 10000, 3, true,  false, false);
-    waves_reset(); errors += test_core_random(core_dut, "core_no_hazard",       syn ? 100 : 10000, 3, false, false, false);
-    waves_reset(); errors += test_core_random(core_dut, "core_random",          syn ? 100 : 10000, 0, false, false, false);
 
 #ifdef WAVES
     if (waves) waves_close();

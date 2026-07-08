@@ -1,14 +1,14 @@
 #pragma once
 #include <cstdint>
+#include <string>
 #include "verilated.h"
 #include "Vdec_wrap.h"
 #include "Vexe_wrap.h"
 #include "Vbranch_wrap.h"
-#include "Vmem_wrap.h"
 #include "Vfetch_wrap.h"
-#include "Vcore_wrap.h"
 #include "Vicache_wrap.h"
 #include "Vdcache_wrap.h"
+#include "Vcore_wrap.h"
 #include "ref.h"
 
 #ifdef WAVES
@@ -44,17 +44,6 @@ private:
     Vexe_wrap *model_;
 };
 
-class MemDut {
-public:
-    MemDut();
-    ~MemDut();
-    void eval(const Decoded& inst, uint32_t rval1, uint32_t rval2);
-    MemReqResult result() const;
-
-private:
-    Vmem_wrap *model_;
-};
-
 class BranchDut {
 public:
     BranchDut();
@@ -83,26 +72,6 @@ public:
 
 private:
     Vfetch_wrap *model_;
-};
-
-class CoreDut {
-public:
-    CoreDut();
-    ~CoreDut();
-    void tick();
-    void eval();
-    void set_rst(bool r);
-    void set_pause(bool p);
-    void write(uint32_t addr, uint32_t data);
-    void write_dmem(uint32_t addr, uint32_t data);
-    void write_reg(uint8_t rd, uint32_t data);
-    uint32_t read_reg(uint8_t rs);
-    uint32_t pc();
-    bool commit();
-    bool pipe_busy();
-
-private:
-    Vcore_wrap *model_;
 };
 
 class ICacheDut {
@@ -142,3 +111,23 @@ public:
 private:
     Vdcache_wrap *model_;
 };
+
+class CoreDut {
+public:
+    CoreDut();
+    ~CoreDut();
+    bool     load_imem(const std::string& path);
+    bool     load_dmem(const std::string& path);
+    bool     run(int max_steps = 1000000);
+    uint32_t mmio(int i) const;
+
+private:
+    Vcore_wrap *model_;
+    uint32_t    imem_[DRAM_WORDS];
+    uint32_t    dmem_[DRAM_WORDS];
+    uint32_t    mmio_[MMIO_WORDS];
+
+    void tick();
+    void program();
+};
+

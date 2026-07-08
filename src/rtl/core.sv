@@ -12,9 +12,9 @@ module core (
     input  takefive_pkg::dram_rsp_t    dmem_dram_rsp,
     input  logic                       dmem_dram_rdy,
 
-    output takefive_pkg::rf_rd_req_t   rf_rd_req,
-    input  takefive_pkg::rf_rd_rsp_t   rf_rd_rsp,
-    output takefive_pkg::rf_wr_req_t   rf_wr_req,
+    output takefive_pkg::mem_req_t     mmio_req,
+    input  takefive_pkg::mem_rsp_t     mmio_rsp,
+    input  logic                       mmio_rdy,
 
     input  logic                       dbg_pause,
     output logic [31:0]                dbg_pc,
@@ -28,13 +28,26 @@ module core (
     takefive_pkg::mem_rsp_t imem_rsp, imem_cache_rsp;
     logic                   imem_rdy, imem_cache_rdy;
 
-    mmu u_immu(
-        .pipe_req  (imem_req       ),
-        .pipe_rsp  (imem_rsp       ),
-        .pipe_rdy  (imem_rdy       ),
-        .cache_req (imem_cache_req ),
-        .cache_rsp (imem_cache_rsp ),
-        .cache_rdy (imem_cache_rdy )
+    takefive_pkg::mem_req_t dmem_req, dmem_cache_req;
+    takefive_pkg::mem_rsp_t dmem_rsp, dmem_cache_rsp;
+    logic                   dmem_rdy, dmem_cache_rdy;
+
+    mmu u_mmu(
+        .imem_pipe_req  (imem_req       ),
+        .imem_pipe_rsp  (imem_rsp       ),
+        .imem_pipe_rdy  (imem_rdy       ),
+        .imem_cache_req (imem_cache_req ),
+        .imem_cache_rsp (imem_cache_rsp ),
+        .imem_cache_rdy (imem_cache_rdy ),
+        .dmem_pipe_req  (dmem_req       ),
+        .dmem_pipe_rsp  (dmem_rsp       ),
+        .dmem_pipe_rdy  (dmem_rdy       ),
+        .dmem_cache_req (dmem_cache_req ),
+        .dmem_cache_rsp (dmem_cache_rsp ),
+        .dmem_cache_rdy (dmem_cache_rdy ),
+        .mmio_req       (mmio_req       ),
+        .mmio_rsp       (mmio_rsp       ),
+        .mmio_rdy       (mmio_rdy       )
     );
 
     icache u_icache(
@@ -46,19 +59,6 @@ module core (
         .dram_req (imem_dram_req  ),
         .dram_rsp (imem_dram_rsp  ),
         .dram_rdy (imem_dram_rdy  )
-    );
-
-    takefive_pkg::mem_req_t dmem_req, dmem_cache_req;
-    takefive_pkg::mem_rsp_t dmem_rsp, dmem_cache_rsp;
-    logic                   dmem_rdy, dmem_cache_rdy;
-
-    mmu u_dmmu(
-        .pipe_req  (dmem_req       ),
-        .pipe_rsp  (dmem_rsp       ),
-        .pipe_rdy  (dmem_rdy       ),
-        .cache_req (dmem_cache_req ),
-        .cache_rsp (dmem_cache_rsp ),
-        .cache_rdy (dmem_cache_rdy )
     );
 
     dcache u_dcache(
@@ -103,7 +103,19 @@ module core (
 
     assign dec_stall = !f2d.vld;
 
-    // ---------------- RegFile (external) ----------------
+    // ---------------- RegFile ----------------
+    takefive_pkg::rf_rd_req_t rf_rd_req;
+    takefive_pkg::rf_rd_rsp_t rf_rd_rsp;
+    takefive_pkg::rf_wr_req_t rf_wr_req;
+
+    rf u_rf(
+        .clk       (clk       ),
+        .rst       (rst       ),
+        .rf_rd_req (rf_rd_req ),
+        .rf_rd_rsp (rf_rd_rsp ),
+        .rf_wr_req (rf_wr_req )
+    );
+
     assign rf_rd_req.rs1 = d2r.inst.rs1;
     assign rf_rd_req.rs2 = d2r.inst.rs2;
 
