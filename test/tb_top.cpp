@@ -669,6 +669,7 @@ int main(int argc, char **argv) {
     bool        prog      = false;
     bool        quiet     = false;
     std::string test_name = "test_core";
+    std::string unit      = "";
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "++syn")    syn   = true;
         if (std::string(argv[i]) == "++waves")  waves = true;
@@ -676,6 +677,8 @@ int main(int argc, char **argv) {
         if (std::string(argv[i]) == "++quiet")  quiet = true;
         if (std::string(argv[i]) == "++name" && i + 1 < argc)
             test_name = argv[++i];
+        if (std::string(argv[i]) == "++unit" && i + 1 < argc)
+            unit = argv[++i];
     }
 
 #ifdef WAVES
@@ -703,14 +706,26 @@ int main(int argc, char **argv) {
     if (waves) waves_open("build/waves.vcd");
 #endif
 
-    waves_reset(); errors += test_dec_directed(dec_dut);
-    waves_reset(); errors += test_dec_random(dec_dut, syn ? 100 : 10000000);
-    waves_reset(); errors += test_exe_directed(exe_dut);
-    waves_reset(); errors += test_exe_random(exe_dut, syn ? 100 : 1000000);
-    waves_reset(); errors += test_branch_directed(branch_dut);
-    waves_reset(); errors += test_fetch_random(fetch_dut, syn ? 100 : 10000);
-    waves_reset(); errors += test_icache_random(icache_dut, syn ? 1000 : 1000000);
-    waves_reset(); errors += test_dcache_random(dcache_dut, syn ? 1000 : 1000000);
+    if (unit.empty() || unit == "dec") {
+        waves_reset(); errors += test_dec_directed(dec_dut);
+        waves_reset(); errors += test_dec_random(dec_dut, 10000000);
+    }
+    if (unit.empty() || unit == "exe") {
+        waves_reset(); errors += test_exe_directed(exe_dut);
+        waves_reset(); errors += test_exe_random(exe_dut, 1000000);
+    }
+    if (unit.empty() || unit == "branch") {
+        waves_reset(); errors += test_branch_directed(branch_dut);
+    }
+    if (unit.empty() || unit == "fetch") {
+        waves_reset(); errors += test_fetch_random(fetch_dut, 10000);
+    }
+    if (unit.empty() || unit == "icache") {
+        waves_reset(); errors += test_icache_random(icache_dut, 1000000);
+    }
+    if (unit.empty() || unit == "dcache") {
+        waves_reset(); errors += test_dcache_random(dcache_dut, 1000000);
+    }
 
 #ifdef WAVES
     if (waves) waves_close();

@@ -1,6 +1,6 @@
 {
     "sim_top": ["dec_wrap", "exe_wrap", "branch_wrap", "fetch_wrap", "icache_wrap", "dcache_wrap", "core_wrap"],
-    "syn_top": ["dec", "alu", "wb", "branch", "mem", "bypass", "fetch", "rf", "core", "icache", "dcache"],
+    "syn_top": ["core"],
     "sources": [
         "src/takefive_pkg.sv",
         "src/rtl/dec.sv",
