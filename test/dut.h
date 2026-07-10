@@ -133,5 +133,5 @@ private:
 
     void tick();
     void program();
+    uint32_t axi_read(uint8_t byte_off);
 };
-

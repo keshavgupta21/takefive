@@ -401,19 +401,29 @@ CoreDut::CoreDut() : model_(new Vcore_wrap), committed_(0), cycles_(0) {
     }
 #endif
 
-    model_->clk          = 0;
-    model_->rst          = 1;
-    model_->dbg_pause    = 1;
-    model_->imem_wr_addr = 0;
-    model_->imem_wr_data = 0;
-    model_->imem_wr_en   = 0;
-    model_->dmem_wr_addr = 0;
-    model_->dmem_wr_data = 0;
-    model_->dmem_wr_en   = 0;
-    model_->mmio_rsp_vld  = 0;
-    model_->mmio_rsp_data = 0;
-    model_->mmio_rsp_uid  = 0;
-    model_->mmio_rdy      = 0;
+    model_->clk              = 0;
+    model_->rst              = 1;
+    model_->imem_wr_addr     = 0;
+    model_->imem_wr_data     = 0;
+    model_->imem_wr_en       = 0;
+    model_->dmem_wr_addr     = 0;
+    model_->dmem_wr_data     = 0;
+    model_->dmem_wr_en       = 0;
+    model_->s_mmio_araddr    = 0;
+    model_->s_mmio_arprot    = 0;
+    model_->s_mmio_arvalid   = 0;
+    model_->s_mmio_rready    = 0;
+    model_->s_mmio_awaddr    = 0;
+    model_->s_mmio_awprot    = 0;
+    model_->s_mmio_awvalid   = 0;
+    model_->s_mmio_wdata     = 0;
+    model_->s_mmio_wstrb     = 0;
+    model_->s_mmio_wvalid    = 0;
+    model_->s_mmio_bready    = 0;
+    model_->m_axis_tready    = 1;
+    model_->s_axis_tvalid    = 0;
+    model_->s_axis_tdata     = 0;
+    model_->s_axis_level     = 0;
     model_->eval();
 }
 
@@ -473,48 +483,41 @@ uint32_t CoreDut::mmio(int i)  const { return mmio_[i]; }
 uint64_t CoreDut::committed()  const { return committed_; }
 uint64_t CoreDut::cycles()     const { return cycles_; }
 
+uint32_t CoreDut::axi_read(uint8_t byte_off) {
+    model_->s_mmio_araddr  = byte_off;
+    model_->s_mmio_arprot  = 0;
+    model_->s_mmio_arvalid = 1;
+    while (!model_->s_mmio_arready) tick();
+    tick();
+    model_->s_mmio_arvalid = 0;
+    model_->s_mmio_rready  = 1;
+    while (!model_->s_mmio_rvalid) tick();
+    uint32_t data = model_->s_mmio_rdata;
+    tick();
+    model_->s_mmio_rready = 0;
+    return data;
+}
+
 bool CoreDut::run(int max_steps) {
     program();
 
     committed_ = 0;
     cycles_    = 0;
 
-    model_->rst       = 0;
-    model_->dbg_pause = 0;
-    model_->mmio_rdy  = 1;
-
-    bool     pending_rsp  = false;
-    uint32_t pending_data = 0;
-    uint32_t pending_uid  = 0;
+    model_->rst = 0;
 
     for (int step = 0; step < max_steps; step++) {
-        model_->mmio_rsp_vld  = pending_rsp ? 1 : 0;
-        model_->mmio_rsp_data = pending_data;
-        model_->mmio_rsp_uid  = pending_uid;
-        pending_rsp = false;
-
         tick();
         cycles_++;
         if (model_->dbg_commit) committed_++;
-
-        if (model_->mmio_req_vld) {
-            uint32_t addr = model_->mmio_req_addr;
-            if (model_->mmio_req_wen) {
-                if (addr == 0xFFFFFFFC) {
-                    model_->rst       = 1;
-                    model_->dbg_pause = 1;
-                    model_->eval();
-                    return true;
-                }
-                if (addr == 0xFFFFFFF8) {
-                    std::cout << (char)(model_->mmio_req_data & 0xFF);
-                }
-                mmio_[(addr & 0xFFu) >> 2] = model_->mmio_req_data;
-            } else {
-                pending_rsp  = true;
-                pending_data = mmio_[(addr & 0xFFu) >> 2];
-                pending_uid  = model_->mmio_req_uid;
-            }
+        if (model_->m_axis_tvalid)
+            std::cout << (char)(model_->m_axis_tdata & 0xFF);
+        if (model_->dbg_pause) {
+            for (int i = 0; i < MMIO_DATA_WORDS; i++)
+                mmio_[i] = axi_read(static_cast<uint8_t>(i * 4));
+            model_->rst = 1;
+            model_->eval();
+            return true;
         }
     }
     return false;

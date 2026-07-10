@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
-static constexpr int DRAM_WORDS = 1024;
-static constexpr int MMIO_WORDS = 64;   // 256-byte MMIO window / 4 bytes per word
+static constexpr int DRAM_WORDS      = 1024;
+static constexpr int MMIO_WORDS      = 64;  // 256-byte MMIO window / 4 bytes per word
+static constexpr int MMIO_DATA_WORDS = 32;  // lower half (0xFFFFFF00-7C); upper half is special
 
 struct Decoded {
     bool     vld;

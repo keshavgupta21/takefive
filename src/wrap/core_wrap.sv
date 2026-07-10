@@ -12,20 +12,43 @@ module core_wrap (
     input  logic [31:0] dmem_wr_data,
     input  logic        dmem_wr_en,
 
-    output logic        mmio_req_vld,
-    output logic        mmio_req_wen,
-    output logic [31:0] mmio_req_addr,
-    output logic [31:0] mmio_req_data,
-    output logic [31:0] mmio_req_uid,
-    input  logic        mmio_rsp_vld,
-    input  logic [31:0] mmio_rsp_data,
-    input  logic [31:0] mmio_rsp_uid,
-    input  logic        mmio_rdy,
-
-    input  logic        dbg_pause,
+    output logic        dbg_pause,
     output logic [31:0] dbg_pc,
     output logic        dbg_commit,
-    output logic        dbg_pipe_busy
+    output logic        dbg_pipe_busy,
+
+    input  logic [7:0]  s_mmio_araddr,
+    input  logic [2:0]  s_mmio_arprot,
+    input  logic        s_mmio_arvalid,
+    output logic        s_mmio_arready,
+
+    output logic [31:0] s_mmio_rdata,
+    output logic [1:0]  s_mmio_rresp,
+    output logic        s_mmio_rvalid,
+    input  logic        s_mmio_rready,
+
+    input  logic [7:0]  s_mmio_awaddr,
+    input  logic [2:0]  s_mmio_awprot,
+    input  logic        s_mmio_awvalid,
+    output logic        s_mmio_awready,
+
+    input  logic [31:0] s_mmio_wdata,
+    input  logic [3:0]  s_mmio_wstrb,
+    input  logic        s_mmio_wvalid,
+    output logic        s_mmio_wready,
+
+    output logic [1:0]  s_mmio_bresp,
+    output logic        s_mmio_bvalid,
+    input  logic        s_mmio_bready,
+
+    output logic        m_axis_tvalid,
+    input  logic        m_axis_tready,
+    output logic [31:0] m_axis_tdata,
+
+    input  logic        s_axis_tvalid,
+    output logic        s_axis_tready,
+    input  logic [31:0] s_axis_tdata,
+    input  logic [31:0] s_axis_level
 );
 
     takefive_pkg::dram_req_t imem_dram_req;
@@ -36,34 +59,45 @@ module core_wrap (
     takefive_pkg::dram_rsp_t dmem_dram_rsp;
     logic                    dmem_dram_rdy;
 
-    takefive_pkg::mem_req_t mmio_req;
-    assign mmio_req_vld  = mmio_req.vld;
-    assign mmio_req_wen  = mmio_req.wen;
-    assign mmio_req_addr = mmio_req.addr;
-    assign mmio_req_data = mmio_req.data;
-    assign mmio_req_uid  = mmio_req.uid;
-
-    takefive_pkg::mem_rsp_t mmio_rsp;
-    assign mmio_rsp.vld  = mmio_rsp_vld;
-    assign mmio_rsp.data = mmio_rsp_data;
-    assign mmio_rsp.uid  = mmio_rsp_uid;
-
     core u_core(
-        .clk           (clk           ),
-        .rst           (rst           ),
-        .imem_dram_req (imem_dram_req ),
-        .imem_dram_rsp (imem_dram_rsp ),
-        .imem_dram_rdy (imem_dram_rdy ),
-        .dmem_dram_req (dmem_dram_req ),
-        .dmem_dram_rsp (dmem_dram_rsp ),
-        .dmem_dram_rdy (dmem_dram_rdy ),
-        .mmio_req      (mmio_req      ),
-        .mmio_rsp      (mmio_rsp      ),
-        .mmio_rdy      (mmio_rdy      ),
-        .dbg_pause     (dbg_pause     ),
-        .dbg_pc        (dbg_pc        ),
-        .dbg_commit    (dbg_commit    ),
-        .dbg_pipe_busy (dbg_pipe_busy )
+        .clk            (clk            ),
+        .rst            (rst            ),
+        .imem_dram_req  (imem_dram_req  ),
+        .imem_dram_rsp  (imem_dram_rsp  ),
+        .imem_dram_rdy  (imem_dram_rdy  ),
+        .dmem_dram_req  (dmem_dram_req  ),
+        .dmem_dram_rsp  (dmem_dram_rsp  ),
+        .dmem_dram_rdy  (dmem_dram_rdy  ),
+        .dbg_pause      (dbg_pause      ),
+        .dbg_pc         (dbg_pc         ),
+        .dbg_commit     (dbg_commit     ),
+        .dbg_pipe_busy  (dbg_pipe_busy  ),
+        .s_mmio_araddr  (s_mmio_araddr  ),
+        .s_mmio_arprot  (s_mmio_arprot  ),
+        .s_mmio_arvalid (s_mmio_arvalid ),
+        .s_mmio_arready (s_mmio_arready ),
+        .s_mmio_rdata   (s_mmio_rdata   ),
+        .s_mmio_rresp   (s_mmio_rresp   ),
+        .s_mmio_rvalid  (s_mmio_rvalid  ),
+        .s_mmio_rready  (s_mmio_rready  ),
+        .s_mmio_awaddr  (s_mmio_awaddr  ),
+        .s_mmio_awprot  (s_mmio_awprot  ),
+        .s_mmio_awvalid (s_mmio_awvalid ),
+        .s_mmio_awready (s_mmio_awready ),
+        .s_mmio_wdata   (s_mmio_wdata   ),
+        .s_mmio_wstrb   (s_mmio_wstrb   ),
+        .s_mmio_wvalid  (s_mmio_wvalid  ),
+        .s_mmio_wready  (s_mmio_wready  ),
+        .s_mmio_bresp   (s_mmio_bresp   ),
+        .s_mmio_bvalid  (s_mmio_bvalid  ),
+        .s_mmio_bready  (s_mmio_bready  ),
+        .m_axis_tvalid  (m_axis_tvalid  ),
+        .m_axis_tready  (m_axis_tready  ),
+        .m_axis_tdata   (m_axis_tdata   ),
+        .s_axis_tvalid  (s_axis_tvalid  ),
+        .s_axis_tready  (s_axis_tready  ),
+        .s_axis_tdata   (s_axis_tdata   ),
+        .s_axis_level   (s_axis_level   )
     );
 
     takefive_pkg::mem_req_t imem_dbg_req;

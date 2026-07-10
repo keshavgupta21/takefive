@@ -617,7 +617,7 @@ static int test_core(const char *imem_path, const char *dmem_path,
     int errors = 0;
     if (!ref_ok) errors++;
     if (!dut_ok) errors++;
-    for (int i = 0; i < MMIO_WORDS; i++)
+    for (int i = 0; i < MMIO_DATA_WORDS; i++)
         if (ref.mmio(i) != dut.mmio(i)) errors++;
 
     if (!quiet || errors) {
