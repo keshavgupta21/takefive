@@ -146,7 +146,8 @@ def build_tb_syn(quiet=False):
     (SYN_DIR).mkdir(exist_ok=True)
 
     rtl_sources = [s for s in CONFIG["sources"]
-                   if s.startswith("src/rtl/") or s == "src/takefive_pkg.sv"]
+                   if s.startswith("src/rtl/") or s.startswith("src/axi/")
+                   or s == "src/takefive_pkg.sv"]
     script = (
         f"read_verilog -sv -I src -D SYNTHESIS {' '.join(rtl_sources)};"
         f" synth -top core; flatten; write_verilog syn/core.v;"

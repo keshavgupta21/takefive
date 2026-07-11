@@ -72,9 +72,7 @@ module dram_mem #(
             lat_oob      <= oob;
             lat_data     <= dram_req.data;
             dram_rsp.vld <= 0;
-        end else begin
-            dram_rsp.vld <= 0;
-        end
+        end else dram_rsp.vld <= 0;
     end
 
     assign dram_rdy = !busy;

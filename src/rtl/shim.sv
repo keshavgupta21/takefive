@@ -1,8 +1,8 @@
 `include "common.svh"
 
 module shim (
-    input  logic clk,
-    input  logic rst,
+    input  logic                    clk,
+    input  logic                    rst,
 
     input  takefive_pkg::mem_req_t  imem_pipe_req,
     output takefive_pkg::mem_rsp_t  imem_pipe_rsp,
@@ -22,39 +22,10 @@ module shim (
 
     output logic                    dbg_pause,
 
-    input  logic [7:0]              s_mmio_araddr,
-    input  logic [2:0]              s_mmio_arprot,
-    input  logic                    s_mmio_arvalid,
-    output logic                    s_mmio_arready,
-
-    output logic [31:0]             s_mmio_rdata,
-    output logic [1:0]              s_mmio_rresp,
-    output logic                    s_mmio_rvalid,
-    input  logic                    s_mmio_rready,
-
-    input  logic [7:0]              s_mmio_awaddr,
-    input  logic [2:0]              s_mmio_awprot,
-    input  logic                    s_mmio_awvalid,
-    output logic                    s_mmio_awready,
-
-    input  logic [31:0]             s_mmio_wdata,
-    input  logic [3:0]              s_mmio_wstrb,
-    input  logic                    s_mmio_wvalid,
-    output logic                    s_mmio_wready,
-
-    output logic [1:0]              s_mmio_bresp,
-    output logic                    s_mmio_bvalid,
-    input  logic                    s_mmio_bready,
-
-    output logic                    m_axis_tvalid,
-    input  logic                    m_axis_tready,
-    output logic [31:0]             m_axis_tdata,
-
-    input  logic                    s_axis_tvalid,
-    output logic                    s_axis_tready,
-    input  logic [31:0]             s_axis_tdata,
-    input  logic [31:0]             s_axis_level
-);
+    `s_axil_intf(mmio),
+    `m_axis_intf(axis),
+    `s_axis_intf(axis)
+    );
 
     // ---- imem passthrough ----
 
@@ -64,30 +35,26 @@ module shim (
 
     // ---- MMIO decode ----
 
-    // Word index constants (addr[7:2], 0–63 over the 256-byte MMIO region)
-    localparam DATA_WORDS  = 6'h20;  // data region: word < DATA_WORDS (0xFFFFFF00–7C)
-    localparam RLEVEL_WORD = 6'h3D;  // 0xFFFFFFF4 — RX FIFO level
-    localparam PUTC_WORD   = 6'h3E;  // 0xFFFFFFF8 — putc/getc
-    localparam EXIT_WORD   = 6'h3F;  // 0xFFFFFFFC — exit
+    localparam DATA_WORDS  = 6'h20;
+    localparam RLEVEL_WORD = 6'h3D;
+    localparam PUTC_WORD   = 6'h3E;
+    localparam EXIT_WORD   = 6'h3F;
 
-    logic        is_mmio;
-    logic [5:0]  word;
-    logic        mmio_wr;
-    logic        mmio_rd;
-    assign is_mmio  = (dmem_pipe_req.addr[31:8] == 24'hFFFFFF);
-    assign word     = dmem_pipe_req.addr[7:2];
-    assign mmio_wr  = dmem_pipe_req.vld && is_mmio &&  dmem_pipe_req.wen;
-    assign mmio_rd  = dmem_pipe_req.vld && is_mmio && !dmem_pipe_req.wen;
+    logic       is_mmio;
+    logic [5:0] word   ;
+    logic       mmio_wr;
+    logic       mmio_rd;
+    assign is_mmio = (dmem_pipe_req.addr[31:8] == 24'hFFFFFF);
+    assign word    = dmem_pipe_req.addr[7:2];
+    assign mmio_wr = dmem_pipe_req.vld && is_mmio &&  dmem_pipe_req.wen;
+    assign mmio_rd = dmem_pipe_req.vld && is_mmio && !dmem_pipe_req.wen;
 
     // ---- dbg_pause register ----
 
     always_ff @(posedge clk) begin
-        if (rst)
-            dbg_pause <= 1'b1;
-        else if (mmio_wr && word == EXIT_WORD)
-            dbg_pause <= 1'b1;
-        else
-            dbg_pause <= 1'b0;
+        if (rst) dbg_pause <= 1'b1;
+        else if (mmio_wr && word == EXIT_WORD) dbg_pause <= 1'b1;
+        else dbg_pause <= 1'b0;
     end
 
     // ---- AXI Stream master (putc) ----
@@ -99,84 +66,38 @@ module shim (
 
     assign s_axis_tready = mmio_rd && word == PUTC_WORD;
 
-    // ---- AXI read state machine ----
-
-    localparam S_IDLE  = 2'b00,
-               S_RADDR = 2'b10,
-               S_RDATA = 2'b11;
-
-    logic [7:0] axi_araddr;
-    logic       axi_arready;
-    logic       axi_rvalid;
-    logic [1:0] state_read;
-
     // ---- MMIO distributed RAM ----
 
-    logic        ar_handshake;
-    logic [4:0]  dpra_sel;
-    logic [31:0] mmio_rdata;
-    logic [31:0] rdata_reg;
-
-    assign ar_handshake = s_mmio_arvalid && axi_arready && (state_read == S_RADDR);
-    assign dpra_sel     = ar_handshake ? s_mmio_araddr[6:2] : axi_araddr[6:2];
+    logic  [4:0] saxil_raddr;
+    logic [31:0] saxil_rdata;
 
     ram #(.WIDTH(32), .DEPTH(32)) u_mmio_ram(
         .clk  (clk                         ),
         .we   (mmio_wr && word < DATA_WORDS),
         .a    (dmem_pipe_req.addr[6:2]     ),
         .di   (dmem_pipe_req.data          ),
-        .dpra (dpra_sel                    ),
-        .dpo  (mmio_rdata                  )
+        .dpra (saxil_raddr                 ),
+        .dpo  (saxil_rdata                 )
     );
 
-    always_ff @(posedge clk) begin
-        if (ar_handshake) begin
-            if (s_mmio_araddr[7:2] < DATA_WORDS) rdata_reg <= mmio_rdata;
-            else                                 rdata_reg <= 32'h0;
-        end
-    end
+    // ---- AXI-Lite slave ----
 
-    // ---- AXI read state machine (continued) ----
+    logic [31:0] imem_base ;
+    logic [31:0] imem_bound;
+    logic [31:0] dmem_base ;
+    logic [31:0] dmem_bound;
 
-    assign s_mmio_arready = axi_arready;
-    assign s_mmio_rvalid  = axi_rvalid;
-    assign s_mmio_rresp   = 2'b00;
-    assign s_mmio_rdata   = rdata_reg;
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            axi_arready <= 1'b0;
-            axi_rvalid  <= 1'b0;
-            axi_araddr  <= '0;
-            state_read  <= S_IDLE;
-        end else case (state_read)
-            S_IDLE: begin
-                state_read  <= S_RADDR;
-                axi_arready <= 1'b1;
-            end
-            S_RADDR:
-                if (s_mmio_arvalid && axi_arready) begin
-                    axi_araddr  <= s_mmio_araddr;
-                    axi_arready <= 1'b0;
-                    axi_rvalid  <= 1'b1;
-                    state_read  <= S_RDATA;
-                end
-            S_RDATA:
-                if (axi_rvalid && s_mmio_rready) begin
-                    axi_rvalid  <= 1'b0;
-                    axi_arready <= 1'b1;
-                    state_read  <= S_RADDR;
-                end
-            default: state_read <= S_IDLE;
-        endcase
-    end
-
-    // ---- AXI write channel (tied off) ----
-
-    assign s_mmio_awready = 1'b0;
-    assign s_mmio_wready  = 1'b0;
-    assign s_mmio_bvalid  = 1'b0;
-    assign s_mmio_bresp   = 2'b00;
+    saxil u_saxil(
+        .clk           (clk        ),
+        .rst           (rst        ),
+        `s_axil_passtie(mmio       ),
+        .mmio_raddr    (saxil_raddr),
+        .mmio_rdata    (saxil_rdata),
+        .imem_base     (imem_base  ),
+        .imem_bound    (imem_bound ),
+        .dmem_base     (dmem_base  ),
+        .dmem_bound    (dmem_bound )
+    );
 
     // ---- dmem dcache path ----
 

@@ -1,7 +1,6 @@
 `include "common.svh"
 
-module dec
-(
+module dec(
     input  takefive_pkg::f2d_t f2d,
     output takefive_pkg::d2r_t d2r
 );

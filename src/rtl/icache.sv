@@ -101,9 +101,8 @@ module icache(
             lat_uid  <= mem_req.uid;
             mem_rdy  <= 0;
             state    <= FETCH;
-        end else if (state == FETCH && dram_rdy) begin
-            state <= FILL;
-        end else if (state == FILL && dram_rsp.vld) begin
+        end else if (state == FETCH && dram_rdy) state <= FILL;
+        else if (state == FILL && dram_rsp.vld) begin
             cache_mem_vld[lat_addr.idx] <= 1;
             mem_rdy                     <= 1;
             state                       <= REQ;

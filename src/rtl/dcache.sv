@@ -159,13 +159,10 @@ module dcache(
             state      <= line_needs_wb ? EVICT : FETCH;
             evict_line <= cache_lru_line;
             evict_way  <= lru_way[addr.idx];
-        end else if (state == EVICT && dram_rdy) begin
-            state <= WAIT;
-        end else if (state == WAIT && dram_rdy) begin
-            state <= FETCH;
-        end else if (state == FETCH && dram_rdy) begin
-            state <= FILL;
-        end else if (state == FILL && dram_rsp.vld) begin
+        end else if (state == EVICT && dram_rdy) state <= WAIT;
+        else if (state == WAIT && dram_rdy)      state <= FETCH;
+        else if (state == FETCH && dram_rdy)     state <= FILL;
+        else if (state == FILL && dram_rsp.vld) begin
             cache_mem_vld[evict_way][lat_addr.idx] <= 1;
             mem_rdy                                <= 1;
             state                                  <= REQ;

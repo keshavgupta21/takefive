@@ -78,9 +78,7 @@ module delay_mem (
                 mem_rsp.uid <= mem_req.uid;
                 req_cnt     <= req_cnt + 1;
             end
-        end else begin
-            mem_rsp.vld <= 0;
-        end
+        end else mem_rsp.vld <= 0;
     end
 
     assign mem_rsp.data = lat_oob ? '0 : dout;
