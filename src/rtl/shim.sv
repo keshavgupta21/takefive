@@ -72,15 +72,19 @@ module shim (
 
     logic        is_mmio;
     logic [5:0]  word;
-    assign is_mmio = (dmem_pipe_req.addr[31:8] == 24'hFFFFFF);
-    assign word    = dmem_pipe_req.addr[7:2];
+    logic        mmio_wr;
+    logic        mmio_rd;
+    assign is_mmio  = (dmem_pipe_req.addr[31:8] == 24'hFFFFFF);
+    assign word     = dmem_pipe_req.addr[7:2];
+    assign mmio_wr  = dmem_pipe_req.vld && is_mmio &&  dmem_pipe_req.wen;
+    assign mmio_rd  = dmem_pipe_req.vld && is_mmio && !dmem_pipe_req.wen;
 
     // ---- dbg_pause register ----
 
     always_ff @(posedge clk) begin
         if (rst)
             dbg_pause <= 1'b1;
-        else if (dmem_pipe_req.vld && is_mmio && dmem_pipe_req.wen && word == EXIT_WORD)
+        else if (mmio_wr && word == EXIT_WORD)
             dbg_pause <= 1'b1;
         else
             dbg_pause <= 1'b0;
@@ -88,14 +92,12 @@ module shim (
 
     // ---- AXI Stream master (putc) ----
 
-    assign m_axis_tvalid = dmem_pipe_req.vld && is_mmio && dmem_pipe_req.wen
-                           && word == PUTC_WORD;
+    assign m_axis_tvalid = mmio_wr && word == PUTC_WORD;
     assign m_axis_tdata  = dmem_pipe_req.data;
 
     // ---- AXI Stream slave (getc) ----
 
-    assign s_axis_tready = dmem_pipe_req.vld && is_mmio && !dmem_pipe_req.wen
-                           && word == PUTC_WORD;
+    assign s_axis_tready = mmio_rd && word == PUTC_WORD;
 
     // ---- AXI read state machine ----
 
@@ -119,18 +121,18 @@ module shim (
     assign dpra_sel     = ar_handshake ? s_mmio_araddr[6:2] : axi_araddr[6:2];
 
     ram #(.WIDTH(32), .DEPTH(32)) u_mmio_ram(
-        .clk  (clk                                                              ),
-        .we   (dmem_pipe_req.vld && is_mmio && dmem_pipe_req.wen && word < DATA_WORDS),
-        .a    (dmem_pipe_req.addr[6:2]                                          ),
-        .di   (dmem_pipe_req.data                                               ),
-        .dpra (dpra_sel                                                         ),
-        .dpo  (mmio_rdata                                                       )
+        .clk  (clk                         ),
+        .we   (mmio_wr && word < DATA_WORDS),
+        .a    (dmem_pipe_req.addr[6:2]     ),
+        .di   (dmem_pipe_req.data          ),
+        .dpra (dpra_sel                    ),
+        .dpo  (mmio_rdata                  )
     );
 
     always_ff @(posedge clk) begin
         if (ar_handshake) begin
             if (s_mmio_araddr[7:2] < DATA_WORDS) rdata_reg <= mmio_rdata;
-            else                                  rdata_reg <= 32'h0;
+            else                                 rdata_reg <= 32'h0;
         end
     end
 

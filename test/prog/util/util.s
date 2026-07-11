@@ -10,7 +10,8 @@ _start:
 .global exit
 exit:
     sw   x0,  -4(x0)
-    j    exit
+endloop:
+    j    endloop
 
 .global dump_and_exit
 dump_and_exit:
@@ -46,5 +47,4 @@ dump_and_exit:
     sw   x29, -140(x0)
     sw   x30, -136(x0)
     sw   x31, -132(x0)
-    sw   x0,    -4(x0)
-    j    dump_and_exit
+    j exit
