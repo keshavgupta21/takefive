@@ -128,10 +128,16 @@ private:
     uint32_t    imem_[DRAM_WORDS];
     uint32_t    dmem_[DRAM_WORDS];
     uint32_t    mmio_[MMIO_WORDS];
+    uint32_t    imem_base_;
+    uint32_t    dmem_base_;
     uint64_t    committed_;
     uint64_t    cycles_;
+    bool        dmem_pending_b_;
+    uint32_t    dmem_aw_addr_;
 
-    void tick();
-    void program();
+    void     tick();
+    void     configure();
+    void     service_axi();
     uint32_t axi_read(uint8_t byte_off);
+    void     axi_write(uint8_t byte_off, uint32_t data);
 };

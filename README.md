@@ -34,11 +34,12 @@ src/
     ram.sv           Parametrised distributed RAM primitive
   axi/
     saxil.sv         AXI4-Lite slave: exposes register dump and control registers
+    maxil.sv         AXI4 master: translates cache-line DRAM requests to AXI beat-by-beat transfers
   util/
-    dram_mem.sv      Behavioural DRAM (20-cycle latency, cache-line wide, BASE-aware OOB)
+    dram_mem.sv      Behavioural DRAM (20-cycle latency, cache-line wide) — used only in unit-test wrappers
     delay_mem.sv     Word-wide memory with variable latency
   wrap/
-    core_wrap.sv     Verilator top: core + u_imem + u_dmem; AXI-Lite + AXI Stream ports
+    core_wrap.sv     Verilator top: thin wrapper around core; exposes AXI-Lite, AXI Stream, and two AXI4 master buses
     dec_wrap.sv      )
     exe_wrap.sv      )
     branch_wrap.sv   ) Unit-test wrappers — flat ports for struct interfaces
@@ -152,14 +153,21 @@ The core is a 4-stage in-order pipeline: **Fetch → Decode → Execute/Mem → 
   requests to the shim. Branches annul the in-flight fetch on a taken path.
 - **Writeback** completes loads (stalls until dmem_rsp.vld) and writes the register file.
 - **Register file** (`rf.sv`) uses two distributed-RAM instances for simultaneous dual read.
-- **Shim** (`shim.sv`) sits between the pipeline and the dcache. It decodes the data
+- **Shim** (`shim.sv`) sits between the pipeline and the caches. It decodes the data
   address: MMIO addresses (`0xFFFFFF00–0xFFFFFFFF`) are handled locally; everything else
-  is forwarded to the dcache. The shim also bridges the AXI4-Lite slave (`saxil.sv`) for
-  external access to the register-dump RAM and control registers, and exposes an AXI Stream
-  master (putc) and slave (getc/level) for console I/O.
-- `dram_mem` models a 20-cycle-latency DRAM with cache-line granularity. It accepts a
-  `BASE` parameter for OOB detection; `core_wrap` passes `0x00000000` for IMEM and
-  `0x80000000` for DMEM.
+  is forwarded to the dcache after subtracting `DMEM_VADDR` (`0x80000000`) so the cache
+  and downstream AXI master see a 0-based offset. The shim instantiates two `maxil` AXI
+  master bridges (one for imem, one for dmem) driven by `base`/`bound` control registers
+  programmed via the AXI4-Lite slave (`saxil.sv`). It also bridges the AXI Stream master
+  (putc) and slave (getc/level) for console I/O, and generates `dbg_pause` as the OR of
+  an internal exit-latch (`dbg_stop_core`, set when the program writes to `EXIT`) and the
+  external `dbg_prog` input.
+- **`dbg_prog`** is an input to `core_wrap` that pauses the pipeline without resetting
+  hardware. The testbench asserts it before releasing `rst` to safely program `base`/`bound`
+  over the AXI-Lite interface, then deasserts it to start execution. `rst` now has a simple
+  hardware-reset meaning only.
+- The testbench (`CoreDut`) acts as the AXI4 slave for both memory buses: it responds to
+  the DUT's read/write requests in the range `[base, base+DRAM_WORDS*4)` each clock cycle.
 
 ## Configuration
 
@@ -202,3 +210,4 @@ FENCE (OPC_FENCE, funct3 = 0) is decoded as valid but neither the execute nor th
 - Add exceptions/interrupts at-least for illegal instructions.
 - Add branch penalty, cache miss, cache hit, etc counters.
 - Remove extra copies of exit and dump and exit from final instruction memory
+- Extend the dirty in data cache to be 16 bits so we only write back the words that are actually dirty

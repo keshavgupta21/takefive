@@ -26,7 +26,51 @@
     output logic        s_``name``_bvalid, \
     input  logic        s_``name``_bready
 
-// Master: module drives commands to slave
+// Master (32-bit addr + data): drives commands over a full AXI bus
+`define m_axi_intf(name) \
+    output logic [31:0] m_``name``_araddr, \
+    output logic [2:0]  m_``name``_arprot, \
+    output logic        m_``name``_arvalid, \
+    input  logic        m_``name``_arready, \
+    input  logic [31:0] m_``name``_rdata, \
+    input  logic [1:0]  m_``name``_rresp, \
+    input  logic        m_``name``_rvalid, \
+    output logic        m_``name``_rready, \
+    output logic [31:0] m_``name``_awaddr, \
+    output logic [2:0]  m_``name``_awprot, \
+    output logic        m_``name``_awvalid, \
+    input  logic        m_``name``_awready, \
+    output logic [31:0] m_``name``_wdata, \
+    output logic [3:0]  m_``name``_wstrb, \
+    output logic        m_``name``_wvalid, \
+    input  logic        m_``name``_wready, \
+    input  logic [1:0]  m_``name``_bresp, \
+    input  logic        m_``name``_bvalid, \
+    output logic        m_``name``_bready
+
+// m_axi_tie(name): passthrough connection for m_axi_intf ports
+`define m_axi_tie(name) \
+    .m_``name``_araddr  (m_``name``_araddr ), \
+    .m_``name``_arprot  (m_``name``_arprot ), \
+    .m_``name``_arvalid (m_``name``_arvalid), \
+    .m_``name``_arready (m_``name``_arready), \
+    .m_``name``_rdata   (m_``name``_rdata  ), \
+    .m_``name``_rresp   (m_``name``_rresp  ), \
+    .m_``name``_rvalid  (m_``name``_rvalid ), \
+    .m_``name``_rready  (m_``name``_rready ), \
+    .m_``name``_awaddr  (m_``name``_awaddr ), \
+    .m_``name``_awprot  (m_``name``_awprot ), \
+    .m_``name``_awvalid (m_``name``_awvalid), \
+    .m_``name``_awready (m_``name``_awready), \
+    .m_``name``_wdata   (m_``name``_wdata  ), \
+    .m_``name``_wstrb   (m_``name``_wstrb  ), \
+    .m_``name``_wvalid  (m_``name``_wvalid ), \
+    .m_``name``_wready  (m_``name``_wready ), \
+    .m_``name``_bresp   (m_``name``_bresp  ), \
+    .m_``name``_bvalid  (m_``name``_bvalid ), \
+    .m_``name``_bready  (m_``name``_bready )
+
+// Master (8-bit addr, 32-bit data): drives commands to slave
 `define m_axil_intf(name) \
     output logic [7:0]  m_``name``_araddr, \
     output logic [2:0]  m_``name``_arprot, \

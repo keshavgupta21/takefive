@@ -390,7 +390,10 @@ bool     DCacheDut::rdy()      const { return model_->mem_rdy;      }
 
 // ---- CoreDut ----
 
-CoreDut::CoreDut() : model_(new Vcore_wrap), committed_(0), cycles_(0) {
+CoreDut::CoreDut()
+    : model_(new Vcore_wrap), imem_base_(0), dmem_base_(0),
+      committed_(0), cycles_(0), dmem_pending_b_(false), dmem_aw_addr_(0)
+{
     std::memset(imem_, 0, sizeof(imem_));
     std::memset(dmem_, 0, sizeof(dmem_));
     std::memset(mmio_, 0, sizeof(mmio_));
@@ -401,29 +404,40 @@ CoreDut::CoreDut() : model_(new Vcore_wrap), committed_(0), cycles_(0) {
     }
 #endif
 
-    model_->clk              = 0;
-    model_->rst              = 1;
-    model_->imem_wr_addr     = 0;
-    model_->imem_wr_data     = 0;
-    model_->imem_wr_en       = 0;
-    model_->dmem_wr_addr     = 0;
-    model_->dmem_wr_data     = 0;
-    model_->dmem_wr_en       = 0;
-    model_->s_mmio_araddr    = 0;
-    model_->s_mmio_arprot    = 0;
-    model_->s_mmio_arvalid   = 0;
-    model_->s_mmio_rready    = 0;
-    model_->s_mmio_awaddr    = 0;
-    model_->s_mmio_awprot    = 0;
-    model_->s_mmio_awvalid   = 0;
-    model_->s_mmio_wdata     = 0;
-    model_->s_mmio_wstrb     = 0;
-    model_->s_mmio_wvalid    = 0;
-    model_->s_mmio_bready    = 0;
-    model_->m_axis_tready    = 1;
-    model_->s_axis_tvalid    = 0;
-    model_->s_axis_tdata     = 0;
-    model_->s_axis_level     = 0;
+    model_->clk               = 0;
+    model_->rst               = 1;
+    model_->dbg_prog          = 1;
+    model_->s_mmio_araddr     = 0;
+    model_->s_mmio_arprot     = 0;
+    model_->s_mmio_arvalid    = 0;
+    model_->s_mmio_rready     = 0;
+    model_->s_mmio_awaddr     = 0;
+    model_->s_mmio_awprot     = 0;
+    model_->s_mmio_awvalid    = 0;
+    model_->s_mmio_wdata      = 0;
+    model_->s_mmio_wstrb      = 0;
+    model_->s_mmio_wvalid     = 0;
+    model_->s_mmio_bready     = 0;
+    model_->m_axis_tready     = 1;
+    model_->s_axis_tvalid     = 0;
+    model_->s_axis_tdata      = 0;
+    model_->s_axis_level      = 0;
+    model_->m_imem_axi_arready = 0;
+    model_->m_imem_axi_rdata   = 0;
+    model_->m_imem_axi_rresp   = 0;
+    model_->m_imem_axi_rvalid  = 0;
+    model_->m_imem_axi_awready = 0;
+    model_->m_imem_axi_wready  = 0;
+    model_->m_imem_axi_bresp   = 0;
+    model_->m_imem_axi_bvalid  = 0;
+    model_->m_dmem_axi_arready = 0;
+    model_->m_dmem_axi_rdata   = 0;
+    model_->m_dmem_axi_rresp   = 0;
+    model_->m_dmem_axi_rvalid  = 0;
+    model_->m_dmem_axi_awready = 0;
+    model_->m_dmem_axi_wready  = 0;
+    model_->m_dmem_axi_bresp   = 0;
+    model_->m_dmem_axi_bvalid  = 0;
     model_->eval();
 }
 
@@ -461,24 +475,6 @@ void CoreDut::tick() {
 #endif
 }
 
-void CoreDut::program() {
-    for (int i = 0; i < DRAM_WORDS; i++) {
-        model_->imem_wr_en   = 1;
-        model_->imem_wr_addr = i * 4;
-        model_->imem_wr_data = imem_[i];
-        tick();
-    }
-    model_->imem_wr_en = 0;
-
-    for (int i = 0; i < DRAM_WORDS; i++) {
-        model_->dmem_wr_en   = 1;
-        model_->dmem_wr_addr = i * 4;
-        model_->dmem_wr_data = dmem_[i];
-        tick();
-    }
-    model_->dmem_wr_en = 0;
-}
-
 uint32_t CoreDut::mmio(int i)  const { return mmio_[i]; }
 uint64_t CoreDut::committed()  const { return committed_; }
 uint64_t CoreDut::cycles()     const { return cycles_; }
@@ -498,17 +494,131 @@ uint32_t CoreDut::axi_read(uint8_t byte_off) {
     return data;
 }
 
+void CoreDut::axi_write(uint8_t byte_off, uint32_t data) {
+    model_->s_mmio_awaddr  = byte_off;
+    model_->s_mmio_awprot  = 0;
+    model_->s_mmio_awvalid = 1;
+    model_->s_mmio_wdata   = data;
+    model_->s_mmio_wstrb   = 0xF;
+    model_->s_mmio_wvalid  = 1;
+    while (!(model_->s_mmio_awready && model_->s_mmio_wready)) tick();
+    tick();
+    model_->s_mmio_awvalid = 0;
+    model_->s_mmio_wvalid  = 0;
+    model_->s_mmio_bready  = 1;
+    while (!model_->s_mmio_bvalid) tick();
+    tick();
+    model_->s_mmio_bready = 0;
+}
+
+void CoreDut::configure() {
+    static std::mt19937 rng(0xC0FFEE42);
+    // pick bases aligned to memory size; ensure imem and dmem don't overlap
+    const uint32_t size = DRAM_WORDS * 4;
+    const uint32_t mask = ~(size - 1);
+    imem_base_ = (static_cast<uint32_t>(rng()) & mask) | size; // non-zero
+    do {
+        dmem_base_ = (static_cast<uint32_t>(rng()) & mask) | size;
+    } while (dmem_base_ == imem_base_);
+
+    axi_write(0x80, imem_base_);
+    axi_write(0x84, size);
+    axi_write(0x88, dmem_base_);
+    axi_write(0x8C, size);
+}
+
+void CoreDut::service_axi() {
+    // ---- imem reads ----
+    if (model_->m_imem_axi_arvalid) {
+        uint32_t addr = model_->m_imem_axi_araddr;
+        if (addr < imem_base_ || addr >= imem_base_ + (uint32_t)(DRAM_WORDS * 4)) {
+            std::cerr << "FAIL: imem AXI OOB address 0x" << std::hex << addr << std::dec << "\n";
+            std::exit(1);
+        }
+        uint32_t idx = (addr - imem_base_) / 4;
+        model_->m_imem_axi_arready = 1;
+        model_->m_imem_axi_rvalid  = 1;
+        model_->m_imem_axi_rdata   = imem_[idx % DRAM_WORDS];
+        model_->m_imem_axi_rresp   = 0;
+    } else {
+        model_->m_imem_axi_arready = 0;
+        model_->m_imem_axi_rvalid  = 0;
+    }
+
+    // ---- dmem reads ----
+    if (model_->m_dmem_axi_arvalid) {
+        uint32_t addr = model_->m_dmem_axi_araddr;
+        if (addr < dmem_base_ || addr >= dmem_base_ + (uint32_t)(DRAM_WORDS * 4)) {
+            std::cerr << "FAIL: dmem AXI OOB read address 0x" << std::hex << addr << std::dec << "\n";
+            std::exit(1);
+        }
+        uint32_t idx = (addr - dmem_base_) / 4;
+        model_->m_dmem_axi_arready = 1;
+        model_->m_dmem_axi_rvalid  = 1;
+        model_->m_dmem_axi_rdata   = dmem_[idx % DRAM_WORDS];
+        model_->m_dmem_axi_rresp   = 0;
+    } else {
+        model_->m_dmem_axi_arready = 0;
+        model_->m_dmem_axi_rvalid  = 0;
+    }
+
+    // ---- dmem writes (AW) ----
+    if (model_->m_dmem_axi_awvalid) {
+        uint32_t addr = model_->m_dmem_axi_awaddr;
+        if (addr < dmem_base_ || addr >= dmem_base_ + (uint32_t)(DRAM_WORDS * 4)) {
+            std::cerr << "FAIL: dmem AXI OOB write address 0x" << std::hex << addr << std::dec << "\n";
+            std::exit(1);
+        }
+        dmem_aw_addr_              = addr;
+        model_->m_dmem_axi_awready = 1;
+    } else {
+        model_->m_dmem_axi_awready = 0;
+    }
+
+    // ---- dmem writes (W) ----
+    if (model_->m_dmem_axi_wvalid) {
+        uint32_t idx = (dmem_aw_addr_ - dmem_base_) / 4;
+        dmem_[idx % DRAM_WORDS]   = model_->m_dmem_axi_wdata;
+        model_->m_dmem_axi_wready = 1;
+        dmem_pending_b_           = true;
+    } else {
+        model_->m_dmem_axi_wready = 0;
+    }
+
+    // ---- dmem B channel ----
+    if (dmem_pending_b_) {
+        model_->m_dmem_axi_bvalid = 1;
+        model_->m_dmem_axi_bresp  = 0;
+        if (model_->m_dmem_axi_bready) dmem_pending_b_ = false;
+    } else {
+        model_->m_dmem_axi_bvalid = 0;
+    }
+}
+
 bool CoreDut::run(int max_steps) {
-    program();
+    committed_      = 0;
+    cycles_         = 0;
+    dmem_pending_b_ = false;
 
-    committed_ = 0;
-    cycles_    = 0;
+    // Hard reset with core paused
+    model_->rst      = 1;
+    model_->dbg_prog = 1;
+    for (int i = 0; i < 4; i++) tick();
 
+    // Release reset; saxil CFG registers are now active
     model_->rst = 0;
+    tick();
+
+    // Program base/bound via AXI-Lite while core is paused
+    configure();
+
+    // Release core into execution
+    model_->dbg_prog = 0;
 
     for (int step = 0; step < max_steps; step++) {
         tick();
         cycles_++;
+        service_axi();
         if (model_->dbg_commit) committed_++;
         if (model_->m_axis_tvalid)
             std::cout << (char)(model_->m_axis_tdata & 0xFF);

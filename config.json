@@ -11,6 +11,7 @@
         "src/rtl/bypass.sv",
         "src/rtl/fetch.sv",
         "src/axi/saxil.sv",
+        "src/axi/maxil.sv",
         "src/rtl/shim.sv",
         "src/rtl/rf.sv",
         "src/rtl/core.sv",

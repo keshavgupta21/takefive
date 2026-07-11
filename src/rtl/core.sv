@@ -4,14 +4,7 @@ module core (
     input  logic                       clk,
     input  logic                       rst,
 
-    output takefive_pkg::dram_req_t    imem_dram_req,
-    input  takefive_pkg::dram_rsp_t    imem_dram_rsp,
-    input  logic                       imem_dram_rdy,
-
-    output takefive_pkg::dram_req_t    dmem_dram_req,
-    input  takefive_pkg::dram_rsp_t    dmem_dram_rsp,
-    input  logic                       dmem_dram_rdy,
-
+    input  logic                       dbg_prog,
     output logic                       dbg_pause,
     output logic [31:0]                dbg_pc,
     output logic                       dbg_commit,
@@ -19,7 +12,9 @@ module core (
 
     `s_axil_intf                       (mmio),
     `m_axis_intf                       (axis),
-    `s_axis_intf                       (axis)
+    `s_axis_intf                       (axis),
+    `m_axi_intf                        (imem_axi),
+    `m_axi_intf                        (dmem_axi)
 );
 
     // ---------------- Shim + Caches ----------------
@@ -32,8 +27,13 @@ module core (
     takefive_pkg::mem_rsp_t dmem_rsp, dmem_cache_rsp;
     logic                   dmem_rdy, dmem_cache_rdy;
 
-    logic dbg_pause_shim;
-    assign dbg_pause = dbg_pause_shim;
+    takefive_pkg::dram_req_t imem_dram_req;
+    takefive_pkg::dram_rsp_t imem_dram_rsp;
+    logic                    imem_dram_rdy;
+
+    takefive_pkg::dram_req_t dmem_dram_req;
+    takefive_pkg::dram_rsp_t dmem_dram_rsp;
+    logic                    dmem_dram_rdy;
 
     shim u_shim(
         .clk            (clk            ),
@@ -50,10 +50,19 @@ module core (
         .dmem_cache_req (dmem_cache_req ),
         .dmem_cache_rsp (dmem_cache_rsp ),
         .dmem_cache_rdy (dmem_cache_rdy ),
-        .dbg_pause      (dbg_pause_shim ),
+        .imem_dram_req  (imem_dram_req  ),
+        .imem_dram_rsp  (imem_dram_rsp  ),
+        .imem_dram_rdy  (imem_dram_rdy  ),
+        .dmem_dram_req  (dmem_dram_req  ),
+        .dmem_dram_rsp  (dmem_dram_rsp  ),
+        .dmem_dram_rdy  (dmem_dram_rdy  ),
+        .dbg_prog       (dbg_prog       ),
+        .dbg_pause      (dbg_pause      ),
         `s_axil_passtie (mmio           ),
         `m_axis_tie     (axis           ),
-        `s_axis_tie     (axis           )
+        `s_axis_tie     (axis           ),
+        `m_axi_tie      (imem_axi       ),
+        `m_axi_tie      (dmem_axi       )
     );
 
     icache u_icache(
@@ -87,15 +96,15 @@ module core (
     assign stall = dec_stall || rf_stall || dmem_stall || wb_stall;
 
     fetch u_fetch(
-        .clk       (clk            ),
-        .rst       (rst            ),
-        .mem_req   (imem_req       ),
-        .mem_rsp   (imem_rsp       ),
-        .mem_rdy   (imem_rdy       ),
-        .f2d       (f2d            ),
-        .annul     (annul          ),
-        .stall     (stall          ),
-        .dbg_pause (dbg_pause_shim )
+        .clk       (clk       ),
+        .rst       (rst       ),
+        .mem_req   (imem_req  ),
+        .mem_rsp   (imem_rsp  ),
+        .mem_rdy   (imem_rdy  ),
+        .f2d       (f2d       ),
+        .annul     (annul     ),
+        .stall     (stall     ),
+        .dbg_pause (dbg_pause )
     );
 
     //         --- PIPELINE STAGE 2 ---

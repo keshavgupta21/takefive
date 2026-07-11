@@ -3,14 +3,7 @@
 module core_wrap (
     input  logic        clk,
     input  logic        rst,
-
-    input  logic [31:0] imem_wr_addr,
-    input  logic [31:0] imem_wr_data,
-    input  logic        imem_wr_en,
-
-    input  logic [31:0] dmem_wr_addr,
-    input  logic [31:0] dmem_wr_data,
-    input  logic        dmem_wr_en,
+    input  logic        dbg_prog,
 
     output logic        dbg_pause,
     output logic [31:0] dbg_pc,
@@ -19,67 +12,24 @@ module core_wrap (
 
     `s_axil_intf        (mmio),
     `m_axis_intf        (axis),
-    `s_axis_intf        (axis)
+    `s_axis_intf        (axis),
+    `m_axi_intf         (imem_axi),
+    `m_axi_intf         (dmem_axi)
 );
-
-    takefive_pkg::dram_req_t imem_dram_req;
-    takefive_pkg::dram_rsp_t imem_dram_rsp;
-    logic                    imem_dram_rdy;
-
-    takefive_pkg::dram_req_t dmem_dram_req;
-    takefive_pkg::dram_rsp_t dmem_dram_rsp;
-    logic                    dmem_dram_rdy;
 
     core u_core(
         .clk            (clk            ),
         .rst            (rst            ),
-        .imem_dram_req  (imem_dram_req  ),
-        .imem_dram_rsp  (imem_dram_rsp  ),
-        .imem_dram_rdy  (imem_dram_rdy  ),
-        .dmem_dram_req  (dmem_dram_req  ),
-        .dmem_dram_rsp  (dmem_dram_rsp  ),
-        .dmem_dram_rdy  (dmem_dram_rdy  ),
+        .dbg_prog       (dbg_prog       ),
         .dbg_pause      (dbg_pause      ),
         .dbg_pc         (dbg_pc         ),
         .dbg_commit     (dbg_commit     ),
         .dbg_pipe_busy  (dbg_pipe_busy  ),
         `s_axil_passtie (mmio           ),
         `m_axis_tie     (axis           ),
-        `s_axis_tie     (axis           )
-    );
-
-    takefive_pkg::mem_req_t imem_dbg_req;
-    assign imem_dbg_req.vld  = imem_wr_en;
-    assign imem_dbg_req.wen  = imem_wr_en;
-    assign imem_dbg_req.addr = imem_wr_addr;
-    assign imem_dbg_req.data = imem_wr_data;
-    assign imem_dbg_req.uid  = '0;
-
-    takefive_pkg::mem_req_t dmem_dbg_req;
-    assign dmem_dbg_req.vld  = dmem_wr_en;
-    assign dmem_dbg_req.wen  = dmem_wr_en;
-    assign dmem_dbg_req.addr = dmem_wr_addr;
-    assign dmem_dbg_req.data = dmem_wr_data;
-    assign dmem_dbg_req.uid  = '0;
-
-    dram_mem #(.BASE(32'h00000000)) u_imem(
-        .clk       (clk           ),
-        .rst       (rst           ),
-        .dbg_pause (dbg_pause     ),
-        .dbg_req   (imem_dbg_req  ),
-        .dram_req  (imem_dram_req ),
-        .dram_rsp  (imem_dram_rsp ),
-        .dram_rdy  (imem_dram_rdy )
-    );
-
-    dram_mem #(.BASE(32'h80000000)) u_dmem(
-        .clk       (clk           ),
-        .rst       (rst           ),
-        .dbg_pause (dbg_pause     ),
-        .dbg_req   (dmem_dbg_req  ),
-        .dram_req  (dmem_dram_req ),
-        .dram_rsp  (dmem_dram_rsp ),
-        .dram_rdy  (dmem_dram_rdy )
+        `s_axis_tie     (axis           ),
+        `m_axi_tie      (imem_axi       ),
+        `m_axi_tie      (dmem_axi       )
     );
 
 endmodule
