@@ -13,19 +13,21 @@ module core (
     `s_axil_intf                       (mmio),
     `m_axis_intf                       (axis),
     `s_axis_intf                       (axis),
-    `m_axi_intf                        (imem_axi),
-    `m_axi_intf                        (dmem_axi)
+    `m_axi_intf                        (imem),
+    `m_axi_intf                        (dmem)
 );
 
     // ---------------- Shim + Caches ----------------
 
-    takefive_pkg::mem_req_t imem_req, imem_cache_req;
-    takefive_pkg::mem_rsp_t imem_rsp, imem_cache_rsp;
-    logic                   imem_rdy, imem_cache_rdy;
+    takefive_pkg::mem_req_t imem_req;
+    takefive_pkg::mem_rsp_t imem_rsp;
+    logic                   imem_rdy;
 
-    takefive_pkg::mem_req_t dmem_req, dmem_cache_req;
-    takefive_pkg::mem_rsp_t dmem_rsp, dmem_cache_rsp;
-    logic                   dmem_rdy, dmem_cache_rdy;
+    logic                   is_mmio;
+
+    takefive_pkg::mem_req_t dmem_req, dmem_cache_req, dmem_mmio_req;
+    takefive_pkg::mem_rsp_t dmem_rsp, dmem_cache_rsp, dmem_mmio_rsp;
+    logic                   dmem_rdy, dmem_cache_rdy, dmem_mmio_rdy;
 
     takefive_pkg::dram_req_t imem_dram_req;
     takefive_pkg::dram_rsp_t imem_dram_rsp;
@@ -35,45 +37,58 @@ module core (
     takefive_pkg::dram_rsp_t dmem_dram_rsp;
     logic                    dmem_dram_rdy;
 
+    // ---- dmem routing ----
+
+    assign is_mmio = (dmem_req.addr[31:8] == 24'hFFFFFF);
+
+    always_comb begin
+        dmem_mmio_req     = dmem_req;
+        dmem_mmio_req.vld = dmem_req.vld && is_mmio;
+    end
+
+    always_comb begin
+        dmem_cache_req      = dmem_req;
+        dmem_cache_req.vld  = dmem_req.vld && !is_mmio;
+        dmem_cache_req.addr = dmem_req.addr - takefive_pkg::DMEM_VADDR;
+    end
+
+    assign dmem_rdy = is_mmio ? dmem_mmio_rdy : dmem_cache_rdy;
+
+    always_comb begin
+        if (dmem_mmio_rsp.vld) dmem_rsp = dmem_mmio_rsp;
+        else                   dmem_rsp = dmem_cache_rsp;
+    end
+
     shim u_shim(
-        .clk            (clk            ),
-        .rst            (rst            ),
-        .imem_pipe_req  (imem_req       ),
-        .imem_pipe_rsp  (imem_rsp       ),
-        .imem_pipe_rdy  (imem_rdy       ),
-        .imem_cache_req (imem_cache_req ),
-        .imem_cache_rsp (imem_cache_rsp ),
-        .imem_cache_rdy (imem_cache_rdy ),
-        .dmem_pipe_req  (dmem_req       ),
-        .dmem_pipe_rsp  (dmem_rsp       ),
-        .dmem_pipe_rdy  (dmem_rdy       ),
-        .dmem_cache_req (dmem_cache_req ),
-        .dmem_cache_rsp (dmem_cache_rsp ),
-        .dmem_cache_rdy (dmem_cache_rdy ),
-        .imem_dram_req  (imem_dram_req  ),
-        .imem_dram_rsp  (imem_dram_rsp  ),
-        .imem_dram_rdy  (imem_dram_rdy  ),
-        .dmem_dram_req  (dmem_dram_req  ),
-        .dmem_dram_rsp  (dmem_dram_rsp  ),
-        .dmem_dram_rdy  (dmem_dram_rdy  ),
-        .dbg_prog       (dbg_prog       ),
-        .dbg_pause      (dbg_pause      ),
-        `s_axil_passtie (mmio           ),
-        `m_axis_tie     (axis           ),
-        `s_axis_tie     (axis           ),
-        `m_axi_tie      (imem_axi       ),
-        `m_axi_tie      (dmem_axi       )
+        .clk           (clk           ),
+        .rst           (rst           ),
+        .dmem_mmio_req (dmem_mmio_req ),
+        .dmem_mmio_rsp (dmem_mmio_rsp ),
+        .dmem_mmio_rdy (dmem_mmio_rdy ),
+        .imem_dram_req (imem_dram_req ),
+        .imem_dram_rsp (imem_dram_rsp ),
+        .imem_dram_rdy (imem_dram_rdy ),
+        .dmem_dram_req (dmem_dram_req ),
+        .dmem_dram_rsp (dmem_dram_rsp ),
+        .dmem_dram_rdy (dmem_dram_rdy ),
+        .dbg_prog      (dbg_prog      ),
+        .dbg_pause     (dbg_pause     ),
+        `axil_bind     (mmio, mmio    ),
+        `m_axis_bind   (axis, axis    ),
+        `s_axis_bind   (axis, axis    ),
+        `axi_bind      (imem, imem    ),
+        `axi_bind      (dmem, dmem    )
     );
 
     icache u_icache(
-        .clk      (clk            ),
-        .rst      (rst            ),
-        .mem_req  (imem_cache_req ),
-        .mem_rsp  (imem_cache_rsp ),
-        .mem_rdy  (imem_cache_rdy ),
-        .dram_req (imem_dram_req  ),
-        .dram_rsp (imem_dram_rsp  ),
-        .dram_rdy (imem_dram_rdy  )
+        .clk      (clk          ),
+        .rst      (rst          ),
+        .mem_req  (imem_req     ),
+        .mem_rsp  (imem_rsp     ),
+        .mem_rdy  (imem_rdy     ),
+        .dram_req (imem_dram_req),
+        .dram_rsp (imem_dram_rsp),
+        .dram_rdy (imem_dram_rdy)
     );
 
     dcache u_dcache(

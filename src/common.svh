@@ -48,28 +48,6 @@
     input  logic        m_``name``_bvalid, \
     output logic        m_``name``_bready
 
-// m_axi_tie(name): passthrough connection for m_axi_intf ports
-`define m_axi_tie(name) \
-    .m_``name``_araddr  (m_``name``_araddr ), \
-    .m_``name``_arprot  (m_``name``_arprot ), \
-    .m_``name``_arvalid (m_``name``_arvalid), \
-    .m_``name``_arready (m_``name``_arready), \
-    .m_``name``_rdata   (m_``name``_rdata  ), \
-    .m_``name``_rresp   (m_``name``_rresp  ), \
-    .m_``name``_rvalid  (m_``name``_rvalid ), \
-    .m_``name``_rready  (m_``name``_rready ), \
-    .m_``name``_awaddr  (m_``name``_awaddr ), \
-    .m_``name``_awprot  (m_``name``_awprot ), \
-    .m_``name``_awvalid (m_``name``_awvalid), \
-    .m_``name``_awready (m_``name``_awready), \
-    .m_``name``_wdata   (m_``name``_wdata  ), \
-    .m_``name``_wstrb   (m_``name``_wstrb  ), \
-    .m_``name``_wvalid  (m_``name``_wvalid ), \
-    .m_``name``_wready  (m_``name``_wready ), \
-    .m_``name``_bresp   (m_``name``_bresp  ), \
-    .m_``name``_bvalid  (m_``name``_bvalid ), \
-    .m_``name``_bready  (m_``name``_bready )
-
 // Master (8-bit addr, 32-bit data): drives commands to slave
 `define m_axil_intf(name) \
     output logic [7:0]  m_``name``_araddr, \
@@ -110,44 +88,62 @@
     input  logic [31:0] s_``name``_level
 
 // ---------------------------------------------------------------------------
-// AXI-Lite instantiation connections
+// Instantiation connection macros
 // ---------------------------------------------------------------------------
 
-// s_axil_passtie(name): passthrough — sub-module ports are s_<name>_araddr etc.
-`define s_axil_passtie(name) \
-    .s_``name``_araddr  (s_``name``_araddr), \
-    .s_``name``_arprot  (s_``name``_arprot), \
-    .s_``name``_arvalid (s_``name``_arvalid), \
-    .s_``name``_arready (s_``name``_arready), \
-    .s_``name``_rdata   (s_``name``_rdata), \
-    .s_``name``_rresp   (s_``name``_rresp), \
-    .s_``name``_rvalid  (s_``name``_rvalid), \
-    .s_``name``_rready  (s_``name``_rready), \
-    .s_``name``_awaddr  (s_``name``_awaddr), \
-    .s_``name``_awprot  (s_``name``_awprot), \
-    .s_``name``_awvalid (s_``name``_awvalid), \
-    .s_``name``_awready (s_``name``_awready), \
-    .s_``name``_wdata   (s_``name``_wdata), \
-    .s_``name``_wstrb   (s_``name``_wstrb), \
-    .s_``name``_wvalid  (s_``name``_wvalid), \
-    .s_``name``_wready  (s_``name``_wready), \
-    .s_``name``_bresp   (s_``name``_bresp), \
-    .s_``name``_bvalid  (s_``name``_bvalid), \
-    .s_``name``_bready  (s_``name``_bready)
+// axi_bind(m, s): connect sub-module's m_<m>_* AXI ports to parent's m_<s>_* signals
+`define axi_bind(m, s) \
+    .m_``m``_araddr  (m_``s``_araddr ), \
+    .m_``m``_arprot  (m_``s``_arprot ), \
+    .m_``m``_arvalid (m_``s``_arvalid), \
+    .m_``m``_arready (m_``s``_arready), \
+    .m_``m``_rdata   (m_``s``_rdata  ), \
+    .m_``m``_rresp   (m_``s``_rresp  ), \
+    .m_``m``_rvalid  (m_``s``_rvalid ), \
+    .m_``m``_rready  (m_``s``_rready ), \
+    .m_``m``_awaddr  (m_``s``_awaddr ), \
+    .m_``m``_awprot  (m_``s``_awprot ), \
+    .m_``m``_awvalid (m_``s``_awvalid), \
+    .m_``m``_awready (m_``s``_awready), \
+    .m_``m``_wdata   (m_``s``_wdata  ), \
+    .m_``m``_wstrb   (m_``s``_wstrb  ), \
+    .m_``m``_wvalid  (m_``s``_wvalid ), \
+    .m_``m``_wready  (m_``s``_wready ), \
+    .m_``m``_bresp   (m_``s``_bresp  ), \
+    .m_``m``_bvalid  (m_``s``_bvalid ), \
+    .m_``m``_bready  (m_``s``_bready )
 
-// ---------------------------------------------------------------------------
-// AXI Stream instantiation connections
-// ---------------------------------------------------------------------------
+// axil_bind(m, s): connect sub-module's s_<m>_* AXI-Lite ports to parent's s_<s>_* signals
+`define axil_bind(m, s) \
+    .s_``m``_araddr  (s_``s``_araddr ), \
+    .s_``m``_arprot  (s_``s``_arprot ), \
+    .s_``m``_arvalid (s_``s``_arvalid), \
+    .s_``m``_arready (s_``s``_arready), \
+    .s_``m``_rdata   (s_``s``_rdata  ), \
+    .s_``m``_rresp   (s_``s``_rresp  ), \
+    .s_``m``_rvalid  (s_``s``_rvalid ), \
+    .s_``m``_rready  (s_``s``_rready ), \
+    .s_``m``_awaddr  (s_``s``_awaddr ), \
+    .s_``m``_awprot  (s_``s``_awprot ), \
+    .s_``m``_awvalid (s_``s``_awvalid), \
+    .s_``m``_awready (s_``s``_awready), \
+    .s_``m``_wdata   (s_``s``_wdata  ), \
+    .s_``m``_wstrb   (s_``s``_wstrb  ), \
+    .s_``m``_wvalid  (s_``s``_wvalid ), \
+    .s_``m``_wready  (s_``s``_wready ), \
+    .s_``m``_bresp   (s_``s``_bresp  ), \
+    .s_``m``_bvalid  (s_``s``_bvalid ), \
+    .s_``m``_bready  (s_``s``_bready )
 
-// m_axis_tie(name): connect .m_<name>_t* ports to m_<name>_t* signals
-`define m_axis_tie(name) \
-    .m_``name``_tvalid (m_``name``_tvalid), \
-    .m_``name``_tready (m_``name``_tready), \
-    .m_``name``_tdata  (m_``name``_tdata)
+// m_axis_bind(m, s): connect sub-module's m_<m>_t* AXI-Stream ports to parent's m_<s>_t* signals
+`define m_axis_bind(m, s) \
+    .m_``m``_tvalid (m_``s``_tvalid), \
+    .m_``m``_tready (m_``s``_tready), \
+    .m_``m``_tdata  (m_``s``_tdata )
 
-// s_axis_tie(name): connect .s_<name>_t*/level ports to s_<name>_t*/level signals
-`define s_axis_tie(name) \
-    .s_``name``_tvalid (s_``name``_tvalid), \
-    .s_``name``_tready (s_``name``_tready), \
-    .s_``name``_tdata  (s_``name``_tdata), \
-    .s_``name``_level  (s_``name``_level)
+// s_axis_bind(m, s): connect sub-module's s_<m>_t*/level ports to parent's s_<s>_t*/level signals
+`define s_axis_bind(m, s) \
+    .s_``m``_tvalid (s_``s``_tvalid), \
+    .s_``m``_tready (s_``s``_tready), \
+    .s_``m``_tdata  (s_``s``_tdata ), \
+    .s_``m``_level  (s_``s``_level )

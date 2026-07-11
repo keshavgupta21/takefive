@@ -13,8 +13,8 @@ module core_wrap (
     `s_axil_intf        (mmio),
     `m_axis_intf        (axis),
     `s_axis_intf        (axis),
-    `m_axi_intf         (imem_axi),
-    `m_axi_intf         (dmem_axi)
+    `m_axi_intf         (imem),
+    `m_axi_intf         (dmem)
 );
 
     core u_core(
@@ -25,11 +25,11 @@ module core_wrap (
         .dbg_pc         (dbg_pc         ),
         .dbg_commit     (dbg_commit     ),
         .dbg_pipe_busy  (dbg_pipe_busy  ),
-        `s_axil_passtie (mmio           ),
-        `m_axis_tie     (axis           ),
-        `s_axis_tie     (axis           ),
-        `m_axi_tie      (imem_axi       ),
-        `m_axi_tie      (dmem_axi       )
+        `axil_bind      (mmio, mmio     ),
+        `m_axis_bind    (axis, axis     ),
+        `s_axis_bind    (axis, axis     ),
+        `axi_bind       (imem, imem     ),
+        `axi_bind       (dmem, dmem     )
     );
 
 endmodule

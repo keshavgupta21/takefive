@@ -422,22 +422,22 @@ CoreDut::CoreDut()
     model_->s_axis_tvalid     = 0;
     model_->s_axis_tdata      = 0;
     model_->s_axis_level      = 0;
-    model_->m_imem_axi_arready = 0;
-    model_->m_imem_axi_rdata   = 0;
-    model_->m_imem_axi_rresp   = 0;
-    model_->m_imem_axi_rvalid  = 0;
-    model_->m_imem_axi_awready = 0;
-    model_->m_imem_axi_wready  = 0;
-    model_->m_imem_axi_bresp   = 0;
-    model_->m_imem_axi_bvalid  = 0;
-    model_->m_dmem_axi_arready = 0;
-    model_->m_dmem_axi_rdata   = 0;
-    model_->m_dmem_axi_rresp   = 0;
-    model_->m_dmem_axi_rvalid  = 0;
-    model_->m_dmem_axi_awready = 0;
-    model_->m_dmem_axi_wready  = 0;
-    model_->m_dmem_axi_bresp   = 0;
-    model_->m_dmem_axi_bvalid  = 0;
+    model_->m_imem_arready = 0;
+    model_->m_imem_rdata   = 0;
+    model_->m_imem_rresp   = 0;
+    model_->m_imem_rvalid  = 0;
+    model_->m_imem_awready = 0;
+    model_->m_imem_wready  = 0;
+    model_->m_imem_bresp   = 0;
+    model_->m_imem_bvalid  = 0;
+    model_->m_dmem_arready = 0;
+    model_->m_dmem_rdata   = 0;
+    model_->m_dmem_rresp   = 0;
+    model_->m_dmem_rvalid  = 0;
+    model_->m_dmem_awready = 0;
+    model_->m_dmem_wready  = 0;
+    model_->m_dmem_bresp   = 0;
+    model_->m_dmem_bvalid  = 0;
     model_->eval();
 }
 
@@ -529,69 +529,69 @@ void CoreDut::configure() {
 
 void CoreDut::service_axi() {
     // ---- imem reads ----
-    if (model_->m_imem_axi_arvalid) {
-        uint32_t addr = model_->m_imem_axi_araddr;
+    if (model_->m_imem_arvalid) {
+        uint32_t addr = model_->m_imem_araddr;
         if (addr < imem_base_ || addr >= imem_base_ + (uint32_t)(DRAM_WORDS * 4)) {
             std::cerr << "FAIL: imem AXI OOB address 0x" << std::hex << addr << std::dec << "\n";
             std::exit(1);
         }
         uint32_t idx = (addr - imem_base_) / 4;
-        model_->m_imem_axi_arready = 1;
-        model_->m_imem_axi_rvalid  = 1;
-        model_->m_imem_axi_rdata   = imem_[idx % DRAM_WORDS];
-        model_->m_imem_axi_rresp   = 0;
+        model_->m_imem_arready = 1;
+        model_->m_imem_rvalid  = 1;
+        model_->m_imem_rdata   = imem_[idx % DRAM_WORDS];
+        model_->m_imem_rresp   = 0;
     } else {
-        model_->m_imem_axi_arready = 0;
-        model_->m_imem_axi_rvalid  = 0;
+        model_->m_imem_arready = 0;
+        model_->m_imem_rvalid  = 0;
     }
 
     // ---- dmem reads ----
-    if (model_->m_dmem_axi_arvalid) {
-        uint32_t addr = model_->m_dmem_axi_araddr;
+    if (model_->m_dmem_arvalid) {
+        uint32_t addr = model_->m_dmem_araddr;
         if (addr < dmem_base_ || addr >= dmem_base_ + (uint32_t)(DRAM_WORDS * 4)) {
             std::cerr << "FAIL: dmem AXI OOB read address 0x" << std::hex << addr << std::dec << "\n";
             std::exit(1);
         }
         uint32_t idx = (addr - dmem_base_) / 4;
-        model_->m_dmem_axi_arready = 1;
-        model_->m_dmem_axi_rvalid  = 1;
-        model_->m_dmem_axi_rdata   = dmem_[idx % DRAM_WORDS];
-        model_->m_dmem_axi_rresp   = 0;
+        model_->m_dmem_arready = 1;
+        model_->m_dmem_rvalid  = 1;
+        model_->m_dmem_rdata   = dmem_[idx % DRAM_WORDS];
+        model_->m_dmem_rresp   = 0;
     } else {
-        model_->m_dmem_axi_arready = 0;
-        model_->m_dmem_axi_rvalid  = 0;
+        model_->m_dmem_arready = 0;
+        model_->m_dmem_rvalid  = 0;
     }
 
     // ---- dmem writes (AW) ----
-    if (model_->m_dmem_axi_awvalid) {
-        uint32_t addr = model_->m_dmem_axi_awaddr;
+    if (model_->m_dmem_awvalid) {
+        uint32_t addr = model_->m_dmem_awaddr;
         if (addr < dmem_base_ || addr >= dmem_base_ + (uint32_t)(DRAM_WORDS * 4)) {
             std::cerr << "FAIL: dmem AXI OOB write address 0x" << std::hex << addr << std::dec << "\n";
             std::exit(1);
         }
         dmem_aw_addr_              = addr;
-        model_->m_dmem_axi_awready = 1;
+        model_->m_dmem_awready = 1;
     } else {
-        model_->m_dmem_axi_awready = 0;
+        model_->m_dmem_awready = 0;
     }
 
     // ---- dmem writes (W) ----
-    if (model_->m_dmem_axi_wvalid) {
+    if (model_->m_dmem_wvalid) {
         uint32_t idx = (dmem_aw_addr_ - dmem_base_) / 4;
-        dmem_[idx % DRAM_WORDS]   = model_->m_dmem_axi_wdata;
-        model_->m_dmem_axi_wready = 1;
+        dmem_[idx % DRAM_WORDS]   = model_->m_dmem_wdata;
+        model_->m_dmem_wready = 1;
         dmem_pending_b_           = true;
     } else {
-        model_->m_dmem_axi_wready = 0;
+        model_->m_dmem_wready = 0;
     }
 
     // ---- dmem B channel ----
     if (dmem_pending_b_) {
-        model_->m_dmem_axi_bvalid = 1;
-        model_->m_dmem_axi_bresp  = 0;
-        if (model_->m_dmem_axi_bready) dmem_pending_b_ = false;
+        model_->m_dmem_bvalid = 1;
+        model_->m_dmem_bresp  = 0;
+        if (model_->m_dmem_bready) dmem_pending_b_ = false;
     } else {
-        model_->m_dmem_axi_bvalid = 0;
+        model_->m_dmem_bvalid = 0;
     }
 }
 
