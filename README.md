@@ -90,8 +90,9 @@ data words and prints a side-by-side register file table.
 | `0x80000000 – 0xFFFFFEFF` | Data memory (dcache-backed)         |
 | `0xFFFFFF00 – 0xFFFFFFFF` | MMIO (64 words, word-addressed)     |
 
-The shim routes all data-path accesses: addresses in `0xFFFFFF00–0xFFFFFFFF` bypass the
-dcache and are handled by the MMIO logic in `shim.sv`.
+Core routes all data-path accesses: addresses in `0xFFFFFF00–0xFFFFFFFF` bypass the dcache
+and are forwarded to the MMIO logic in `shim.sv`; all other addresses go to the dcache after
+subtracting `DMEM_VADDR` (`0x80000000`).
 
 **MMIO word map (byte address = `0xFFFFFF00 + word × 4`):**
 
@@ -150,18 +151,21 @@ The core is a 4-stage in-order pipeline: **Fetch → Decode → Execute/Mem → 
 - **Fetch** issues word-addressed reads to the icache → dram_mem (IMEM, 4 KB).
 - **Decode** extracts instruction fields and reads the register file.
 - **Execute/Mem** computes the ALU result, resolves branches, and issues load/store
-  requests to the shim. Branches annul the in-flight fetch on a taken path.
+  requests. MMIO requests are routed to the shim; dcache requests go directly to the
+  dcache. Branches annul the in-flight fetch on a taken path.
 - **Writeback** completes loads (stalls until dmem_rsp.vld) and writes the register file.
 - **Register file** (`rf.sv`) uses two distributed-RAM instances for simultaneous dual read.
-- **Shim** (`shim.sv`) sits between the pipeline and the caches. It decodes the data
-  address: MMIO addresses (`0xFFFFFF00–0xFFFFFFFF`) are handled locally; everything else
-  is forwarded to the dcache after subtracting `DMEM_VADDR` (`0x80000000`) so the cache
-  and downstream AXI master see a 0-based offset. The shim instantiates two `maxil` AXI
-  master bridges (one for imem, one for dmem) driven by `base`/`bound` control registers
-  programmed via the AXI4-Lite slave (`saxil.sv`). It also bridges the AXI Stream master
-  (putc) and slave (getc/level) for console I/O, and generates `dbg_pause` as the OR of
-  an internal exit-latch (`dbg_stop_core`, set when the program writes to `EXIT`) and the
-  external `dbg_prog` input.
+- **Core routing** (`core.sv`) decodes data-path addresses: MMIO addresses
+  (`0xFFFFFF00–0xFFFFFFFF`) are forwarded to the shim; everything else goes to the dcache
+  after subtracting `DMEM_VADDR` (`0x80000000`). Instruction fetches connect directly from
+  the fetch stage to the icache with no shim involvement.
+- **Shim** (`shim.sv`) handles MMIO and the AXI master bridges. It receives pre-filtered
+  MMIO requests from core, drives the AXI Stream master (putc) and slave (getc/level) for
+  console I/O, and generates `dbg_pause` as the OR of an internal exit-latch
+  (`dbg_stop_core`, set when the program writes to `EXIT`) and the external `dbg_prog`
+  input. It also instantiates two `maxil` AXI master bridges (one for imem, one for dmem)
+  driven by `base`/`bound` control registers programmed via the AXI4-Lite slave
+  (`saxil.sv`).
 - **`dbg_prog`** is an input to `core_wrap` that pauses the pipeline without resetting
   hardware. The testbench asserts it before releasing `rst` to safely program `base`/`bound`
   over the AXI-Lite interface, then deasserts it to start execution. `rst` now has a simple

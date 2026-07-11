@@ -4,14 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TakeFive is a RISC-V processor implemented in SystemVerilog. Currently in early stages with a stub execution unit; the core will grow into a full pipeline.
+TakeFive is a RISC-V processor implemented in SystemVerilog. It implements a 4-stage in-order pipeline (Fetch → Decode → Execute/Mem → Writeback) with icache, dcache, MMIO, and AXI4 master interfaces.
 
 ## Build & Test Commands
 
 ```sh
-./run.py ++sim            # Build with Verilator and run testbench
-./run.py ++syn            # Synthesize with Yosys (output: syn/<top>.v)
-./run.py ++syn ++sim      # Synthesize, then simulate the netlist
+./run.py ++unit_test <unit|all>   # Run unit tests (dec, exe, branch, fetch, icache, dcache)
+./run.py ++core_test <prog|all>   # Run core integration tests
+./run.py ++core_test ++syn        # Synthesize core, then run all core tests
+./run.py ++dump <prog>            # Compile prog and write disassembly to build/imem.lst
+./run.py ++clean                  # Remove build/ and syn/
 ```
 
 Build artifacts go to `build/<top>/`, synthesis output to `syn/`. Both are gitignored.
@@ -25,8 +27,7 @@ Verilator 5.x, Yosys 0.59+, C++17 compiler, Python 3.
 ## Architecture
 
 - **`config.json`** — Declares the list of top modules and RTL source list. `run.py` reads this to drive both Verilator and Yosys for each top module, so new `.sv` files must be added here.
-- **`src/`** — SystemVerilog RTL. `core.sv` is the top-level module; submodules (like `exe.sv`, `dec.sv`) are instantiated inside it.
-- **`src/intf/`** — SystemVerilog interface definitions (e.g., `f2d_intf.sv`, `d2r_intf.sv`).
+- **`src/`** — SystemVerilog RTL. `core.sv` is the top-level module; submodules (`dec.sv`, `alu.sv`, `mem.sv`, `branch.sv`, `shim.sv`, etc.) are instantiated inside it.
 - **`src/wrap/`** — Verilator test wrappers that expose flat ports for modules with interface ports (e.g., `dec_wrap.sv`).
 - **`test/`** — C++ testbench using a dual-model pattern:
   - `Dut` (`dut.h/cpp`) wraps the Verilator-generated model.
