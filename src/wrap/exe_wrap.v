@@ -1,22 +1,22 @@
 `include "common.svh"
 
 module exe_wrap (
-    input  logic [31:0] pc,
-    input  logic        inst_vld,
-    input  logic [6:0]  inst_opc,
-    input  logic [4:0]  inst_rd,
-    input  logic [4:0]  inst_rs1,
-    input  logic [4:0]  inst_rs2,
-    input  logic [2:0]  inst_funct3,
-    input  logic [6:0]  inst_funct7,
-    input  logic [31:0] inst_imm,
-    input  logic [31:0] rval1,
-    input  logic [31:0] rval2,
-    input  logic [31:0] mem_data,
+    input  wire [31:0] pc,
+    input  wire        inst_vld,
+    input  wire [6:0]  inst_opc,
+    input  wire [4:0]  inst_rd,
+    input  wire [4:0]  inst_rs1,
+    input  wire [4:0]  inst_rs2,
+    input  wire [2:0]  inst_funct3,
+    input  wire [6:0]  inst_funct7,
+    input  wire [31:0] inst_imm,
+    input  wire [31:0] rval1,
+    input  wire [31:0] rval2,
+    input  wire [31:0] mem_data,
 
-    output logic [4:0]  rf_wr_req_rd,
-    output logic        rf_wr_req_wen,
-    output logic [31:0] rf_wr_req_wdata
+    output wire [4:0]  rf_wr_req_rd,
+    output wire        rf_wr_req_wen,
+    output wire [31:0] rf_wr_req_wdata
 );
 
     takefive_pkg::r2e_t r2e;
@@ -33,7 +33,7 @@ module exe_wrap (
     assign r2e.rvals.rval1 = rval1;
     assign r2e.rvals.rval2 = rval2;
 
-    logic [31:0] alu_out;
+    wire [31:0] alu_out;
 
     alu u_alu(
         .r2e     (r2e    ),
@@ -54,7 +54,7 @@ module exe_wrap (
 
     takefive_pkg::rf_wr_req_t rf_wr_req;
 
-    logic wb_stall;
+    wire wb_stall;
 
     wb u_wb(
         .e2w        (e2w        ),

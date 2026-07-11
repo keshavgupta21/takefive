@@ -20,12 +20,12 @@
         "src/rtl/ram.sv",
         "src/util/delay_mem.sv",
         "src/util/dram_mem.sv",
-        "src/wrap/dec_wrap.sv",
-        "src/wrap/exe_wrap.sv",
-        "src/wrap/branch_wrap.sv",
-        "src/wrap/fetch_wrap.sv",
-        "src/wrap/icache_wrap.sv",
-        "src/wrap/dcache_wrap.sv",
-        "src/wrap/core_wrap.sv"
+        "src/wrap/dec_wrap.v",
+        "src/wrap/exe_wrap.v",
+        "src/wrap/branch_wrap.v",
+        "src/wrap/fetch_wrap.v",
+        "src/wrap/icache_wrap.v",
+        "src/wrap/dcache_wrap.v",
+        "src/wrap/core_wrap.v"
     ]
 }

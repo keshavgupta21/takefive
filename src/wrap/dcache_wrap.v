@@ -1,28 +1,30 @@
 `include "common.svh"
 
-module icache_wrap (
-    input  logic        clk,
-    input  logic        rst,
+module dcache_wrap (
+    input  wire        clk,
+    input  wire        rst,
 
-    input  logic        dbg_pause,
-    input  logic [31:0] wr_addr,
-    input  logic [31:0] wr_data,
-    input  logic        wr_en,
+    input  wire        dbg_pause,
+    input  wire [31:0] wr_addr,
+    input  wire [31:0] wr_data,
+    input  wire        wr_en,
 
-    input  logic        mem_req_vld,
-    input  logic [31:0] mem_req_addr,
+    input  wire        mem_req_vld,
+    input  wire [31:0] mem_req_addr,
+    input  wire        mem_req_wen,
+    input  wire [31:0] mem_req_data,
 
-    output logic        mem_rsp_vld,
-    output logic [31:0] mem_rsp_data,
-    output logic [31:0] mem_rsp_uid,
-    output logic        mem_rdy
+    output wire        mem_rsp_vld,
+    output wire [31:0] mem_rsp_data,
+    output wire [31:0] mem_rsp_uid,
+    output wire        mem_rdy
 );
 
     takefive_pkg::mem_req_t mem_req;
     assign mem_req.vld  = mem_req_vld;
     assign mem_req.addr = mem_req_addr;
-    assign mem_req.wen  = 1'b0;
-    assign mem_req.data = 32'b0;
+    assign mem_req.wen  = mem_req_wen;
+    assign mem_req.data = mem_req_data;
     assign mem_req.uid  = '0;
 
     takefive_pkg::mem_rsp_t mem_rsp;
@@ -32,9 +34,9 @@ module icache_wrap (
 
     takefive_pkg::dram_req_t dram_req;
     takefive_pkg::dram_rsp_t dram_rsp;
-    logic                    dram_rdy;
+    wire                     dram_rdy;
 
-    icache u_icache(
+    dcache u_dcache(
         .clk      (clk      ),
         .rst      (rst      ),
         .mem_req  (mem_req  ),

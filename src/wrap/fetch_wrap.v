@@ -1,22 +1,22 @@
 `include "common.svh"
 
 module fetch_wrap (
-    input  logic        clk,
-    input  logic        rst,
+    input  wire        clk,
+    input  wire        rst,
 
-    input  logic [31:0] wr_addr,
-    input  logic [31:0] wr_data,
-    input  logic        wr_en,
+    input  wire [31:0] wr_addr,
+    input  wire [31:0] wr_data,
+    input  wire        wr_en,
 
-    output logic        f_vld,
-    output logic [31:0] f_pc,
-    output logic [31:0] f_inst,
+    output wire        f_vld,
+    output wire [31:0] f_pc,
+    output wire [31:0] f_inst,
 
-    input  logic        annul_annul,
-    input  logic [31:0] annul_pc,
-    input  logic [31:0] annul_nxt_pc,
+    input  wire        annul_annul,
+    input  wire [31:0] annul_pc,
+    input  wire [31:0] annul_nxt_pc,
 
-    input  logic        dbg_pause
+    input  wire        dbg_pause
 );
 
     takefive_pkg::mem_req_t mem_req;
@@ -29,7 +29,7 @@ module fetch_wrap (
 
     takefive_pkg::f2d_t f2d;
 
-    logic mem_rdy;
+    wire mem_rdy;
 
     fetch u_fetch(
         .clk       (clk       ),

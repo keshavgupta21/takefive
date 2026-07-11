@@ -1,14 +1,14 @@
 `include "common.svh"
 
 module core_wrap (
-    input  logic        clk,
-    input  logic        rst,
-    input  logic        dbg_prog,
+    input  wire        clk,
+    input  wire        rst,
+    input  wire        dbg_prog,
 
-    output logic        dbg_pause,
-    output logic [31:0] dbg_pc,
-    output logic        dbg_commit,
-    output logic        dbg_pipe_busy,
+    output wire        dbg_pause,
+    output wire [31:0] dbg_pc,
+    output wire        dbg_commit,
+    output wire        dbg_pipe_busy,
 
     `s_axil_intf        (mmio),
     `m_axis_intf        (axis),

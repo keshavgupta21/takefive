@@ -1,18 +1,18 @@
 `include "common.svh"
 
 module dec_wrap (
-    input  logic        f_vld,
-    input  logic [31:0] f_pc,
-    input  logic [31:0] f_inst,
-    output logic [31:0] d_pc,
-    output logic        d_inst_vld,
-    output logic [6:0]  d_inst_opc,
-    output logic [4:0]  d_inst_rd,
-    output logic [4:0]  d_inst_rs1,
-    output logic [4:0]  d_inst_rs2,
-    output logic [2:0]  d_inst_funct3,
-    output logic [6:0]  d_inst_funct7,
-    output logic [31:0] d_inst_imm
+    input  wire        f_vld,
+    input  wire [31:0] f_pc,
+    input  wire [31:0] f_inst,
+    output wire [31:0] d_pc,
+    output wire        d_inst_vld,
+    output wire [6:0]  d_inst_opc,
+    output wire [4:0]  d_inst_rd,
+    output wire [4:0]  d_inst_rs1,
+    output wire [4:0]  d_inst_rs2,
+    output wire [2:0]  d_inst_funct3,
+    output wire [6:0]  d_inst_funct7,
+    output wire [31:0] d_inst_imm
 );
 
     takefive_pkg::f2d_t f2d;

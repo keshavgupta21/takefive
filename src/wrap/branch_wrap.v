@@ -1,21 +1,21 @@
 `include "common.svh"
 
 module branch_wrap (
-    input  logic [31:0] pc,
-    input  logic        inst_vld,
-    input  logic [6:0]  inst_opc,
-    input  logic [4:0]  inst_rd,
-    input  logic [4:0]  inst_rs1,
-    input  logic [4:0]  inst_rs2,
-    input  logic [2:0]  inst_funct3,
-    input  logic [6:0]  inst_funct7,
-    input  logic [31:0] inst_imm,
-    input  logic [31:0] rval1,
-    input  logic [31:0] rval2,
+    input  wire [31:0] pc,
+    input  wire        inst_vld,
+    input  wire [6:0]  inst_opc,
+    input  wire [4:0]  inst_rd,
+    input  wire [4:0]  inst_rs1,
+    input  wire [4:0]  inst_rs2,
+    input  wire [2:0]  inst_funct3,
+    input  wire [6:0]  inst_funct7,
+    input  wire [31:0] inst_imm,
+    input  wire [31:0] rval1,
+    input  wire [31:0] rval2,
 
-    output logic        annul_annul,
-    output logic [31:0] annul_pc,
-    output logic [31:0] annul_nxt_pc
+    output wire        annul_annul,
+    output wire [31:0] annul_pc,
+    output wire [31:0] annul_nxt_pc
 );
 
     takefive_pkg::r2e_t r2e;
