@@ -56,7 +56,7 @@ module saxil (
 
     always_ff @(posedge clk) begin
         if (ar_handshake) begin
-            if (s_mmio_araddr[7:2] < 6'h20) rdata_reg <= mmio_rdata;
+            if (s_mmio_araddr[7:2] < takefive_pkg::MMIO_DATA_WORDS[7:2]) rdata_reg <= mmio_rdata;
             else                        rdata_reg <= '0;
         end
     end
@@ -157,10 +157,10 @@ module saxil (
             dmem_bound <= '0;
         end else if (s_mmio_wvalid && axi_wready) begin
             case (wr_addr)
-                8'h80: imem_base  <= s_mmio_wdata;
-                8'h84: imem_bound <= s_mmio_wdata;
-                8'h88: dmem_base  <= s_mmio_wdata;
-                8'h8c: dmem_bound <= s_mmio_wdata;
+                takefive_pkg::CFG_IMEM_BASE : imem_base  <= s_mmio_wdata;
+                takefive_pkg::CFG_IMEM_BOUND: imem_bound <= s_mmio_wdata;
+                takefive_pkg::CFG_DMEM_BASE : dmem_base  <= s_mmio_wdata;
+                takefive_pkg::CFG_DMEM_BOUND: dmem_bound <= s_mmio_wdata;
                 default:;
             endcase
         end

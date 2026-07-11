@@ -127,6 +127,20 @@ package takefive_pkg;
         logic [31:0] uid;
     } mem_rsp_t;
 
+    // ---------------- MMIO Map ----------------
+
+    // Core-side word indices (addr[7:2] within 0xFFFFFF00 space)
+    parameter MMIO_DATA_WORDS  = 8'h80;
+    parameter MMIO_ADDR_RLEVEL = 8'hF4;
+    parameter MMIO_ADDR_STREAM = 8'hF8;
+    parameter MMIO_ADDR_EXIT   = 8'hFC;
+
+    // AXI-Lite control register byte addresses (saxil slave)
+    parameter CFG_IMEM_BASE  = 8'h80;
+    parameter CFG_IMEM_BOUND = 8'h84;
+    parameter CFG_DMEM_BASE  = 8'h88;
+    parameter CFG_DMEM_BOUND = 8'h8C;
+
     // ---------------- Cache Types ----------------
 
     parameter DRAM_WORDS  = 1024;

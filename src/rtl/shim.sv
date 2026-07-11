@@ -35,11 +35,6 @@ module shim (
 
     // ---- MMIO decode ----
 
-    localparam DATA_WORDS  = 6'h20;
-    localparam RLEVEL_WORD = 6'h3D;
-    localparam PUTC_WORD   = 6'h3E;
-    localparam EXIT_WORD   = 6'h3F;
-
     logic       is_mmio;
     logic [5:0] word   ;
     logic       mmio_wr;
@@ -53,18 +48,18 @@ module shim (
 
     always_ff @(posedge clk) begin
         if (rst) dbg_pause <= 1'b1;
-        else if (mmio_wr && word == EXIT_WORD) dbg_pause <= 1'b1;
+        else if (mmio_wr && word == takefive_pkg::MMIO_ADDR_EXIT[7:2]) dbg_pause <= 1'b1;
         else dbg_pause <= 1'b0;
     end
 
-    // ---- AXI Stream master (putc) ----
+    // ---- AXI Stream master ----
 
-    assign m_axis_tvalid = mmio_wr && word == PUTC_WORD;
+    assign m_axis_tvalid = mmio_wr && word == takefive_pkg::MMIO_ADDR_STREAM[7:2];
     assign m_axis_tdata  = dmem_pipe_req.data;
 
-    // ---- AXI Stream slave (getc) ----
+    // ---- AXI Stream slave ----
 
-    assign s_axis_tready = mmio_rd && word == PUTC_WORD;
+    assign s_axis_tready = mmio_rd && word == takefive_pkg::MMIO_ADDR_STREAM[7:2];
 
     // ---- MMIO distributed RAM ----
 
@@ -73,7 +68,7 @@ module shim (
 
     ram #(.WIDTH(32), .DEPTH(32)) u_mmio_ram(
         .clk  (clk                         ),
-        .we   (mmio_wr && word < DATA_WORDS),
+        .we   (mmio_wr && word < takefive_pkg::MMIO_DATA_WORDS[7:2]),
         .a    (dmem_pipe_req.addr[6:2]     ),
         .di   (dmem_pipe_req.data          ),
         .dpra (saxil_raddr                 ),
@@ -110,9 +105,9 @@ module shim (
 
     logic [31:0] mmio_rd_data;
     always_comb begin
-        if (word == PUTC_WORD)        mmio_rd_data = s_axis_tdata;
-        else if (word == RLEVEL_WORD) mmio_rd_data = s_axis_level;
-        else                          mmio_rd_data = 32'h0;
+        if (word == takefive_pkg::MMIO_ADDR_STREAM[7:2])      mmio_rd_data = s_axis_tdata;
+        else if (word == takefive_pkg::MMIO_ADDR_RLEVEL[7:2]) mmio_rd_data = s_axis_level;
+        else                                                  mmio_rd_data = 32'h0;
     end
 
     takefive_pkg::mem_rsp_t mmio_rsp;
