@@ -17,8 +17,9 @@ config.json          Project configuration (source list, sim/syn tops)
 run.py               Build/run/test script
 src/
   takefive_pkg.sv    Package: instruction encodings, processor types, cache types
+  common.svh         AXI-Lite and AXI Stream port macros (s_axil_intf, m_axis_intf, …)
   rtl/               Core RTL
-    core.sv          Top-level processor (pipeline + MMU + icache + dcache + RF)
+    core.sv          Top-level processor (pipeline + shim + icache + dcache + RF)
     fetch.sv         Stage 1: instruction fetch
     dec.sv           Stage 2: decode
     alu.sv           Stage 3: ALU
@@ -27,15 +28,17 @@ src/
     bypass.sv        Register file bypass / hazard detection
     wb.sv            Stage 4: writeback
     rf.sv            Register file (two distributed-RAM instances)
-    mmu.sv           Memory map unit (routes dmem to dcache or MMIO)
+    shim.sv          MMIO decode, AXI Stream console, AXI-Lite slave bridge
     icache.sv        Direct-mapped instruction cache (16 entries, 16-word lines)
     dcache.sv        Direct-mapped write-back data cache (16 entries, 16-word lines)
     ram.sv           Parametrised distributed RAM primitive
+  axi/
+    saxil.sv         AXI4-Lite slave: exposes register dump and control registers
   util/
     dram_mem.sv      Behavioural DRAM (20-cycle latency, cache-line wide, BASE-aware OOB)
     delay_mem.sv     Word-wide memory with variable latency
   wrap/
-    core_wrap.sv     Verilator top: core + u_imem + u_dmem, flat MMIO ports
+    core_wrap.sv     Verilator top: core + u_imem + u_dmem; AXI-Lite + AXI Stream ports
     dec_wrap.sv      )
     exe_wrap.sv      )
     branch_wrap.sv   ) Unit-test wrappers — flat ports for struct interfaces
@@ -43,7 +46,7 @@ src/
     icache_wrap.sv   )
     dcache_wrap.sv   )
 test/
-  tb_top.cpp         Testbench: unit tests (++sim) and core integration test (++prog)
+  tb_top.cpp         Testbench: unit tests (++unit_test) and core integration test (++core_test)
   dut.h / dut.cpp    DUT wrappers (Verilator model drivers), including CoreDut
   ref.h / ref.cpp    Reference model (pure C++), including CoreRef
   prog/              RISC-V test programs
@@ -59,25 +62,26 @@ test/
 
 ```sh
 # Unit tests (decode, execute, branch, fetch, icache, dcache)
-./run.py ++sim               # Simulate RTL with Verilator
-./run.py ++sim_waves         # Simulate with VCD waveform output
-./run.py ++sim_syn           # Synthesize all modules, then simulate netlists
+./run.py ++unit_test <unit|all>          # Run unit test(s) against RTL
+./run.py ++unit_test ++waves <unit|all>  # Same, with VCD waveform output
 
 # Full-core integration tests
-./run.py ++test <prog>       # Compile test/prog/<prog>.c/.s and run against RTL core
-./run.py ++test_waves <prog> # Same, with VCD written to build/waves.vcd
-./run.py ++test_syn <prog>   # Same, against synthesized core netlist
-./run.py ++test_all          # Compile and run all programs in test/prog/
+./run.py ++core_test <prog|all>          # Compile and run a program against RTL core
+./run.py ++core_test ++waves <prog>      # Same, with VCD written to build/waves.vcd
+./run.py ++core_test ++syn               # Synthesize core, then run all program tests
 
-./run.py ++clean             # Remove build/ and syn/
+./run.py ++dump <prog>                   # Compile prog and write disassembly to build/imem.lst
+./run.py ++clean                         # Remove build/ and syn/
 ```
 
-`++test` compiles the program with `riscv64-unknown-elf-gcc` (rv32i, -O2, -ffreestanding,
+`++core_test` compiles the program with `riscv64-unknown-elf-gcc` (rv32i, -O2, -ffreestanding,
 -nostdlib), loads the resulting `build/inst.mem` and `build/data.mem` into both a pure-C++
-`CoreRef` and a Verilator `CoreDut`, runs both to completion, then compares all 64 MMIO
-words and prints a side-by-side register file table.
+`CoreRef` and a Verilator `CoreDut`, runs both to completion, then compares all 32 MMIO
+data words and prints a side-by-side register file table.
 
 ## Memory Map
+
+### Processor address space (core-side)
 
 | Range                     | Region                              |
 |---------------------------|-------------------------------------|
@@ -85,23 +89,50 @@ words and prints a side-by-side register file table.
 | `0x80000000 – 0xFFFFFEFF` | Data memory (dcache-backed)         |
 | `0xFFFFFF00 – 0xFFFFFFFF` | MMIO (64 words, word-addressed)     |
 
-The MMU routes all data-path accesses: non-MMIO addresses go to the dcache, MMIO
-addresses bypass the cache and appear on the flat `mmio_req/rsp/rdy` ports of `core_wrap`.
+The shim routes all data-path accesses: addresses in `0xFFFFFF00–0xFFFFFFFF` bypass the
+dcache and are handled by the MMIO logic in `shim.sv`.
 
-**MMIO conventions used by the test runtime:**
+**MMIO word map (byte address = `0xFFFFFF00 + word × 4`):**
 
-| Address      | Meaning                              |
-|--------------|--------------------------------------|
-| `0xFFFFFF00` | MMIO[0] = x0 (dump_and_exit)        |
-| `0xFFFFFF04` | MMIO[1] = x1                        |
-| …            | …                                    |
-| `0xFFFFFF7C` | MMIO[31] = x31                      |
-| `0xFFFFFFFC` | `sw x0, -4(x0)` — halt signal       |
+| Word | Address      | Name     | Direction | Meaning                                 |
+|------|--------------|----------|-----------|-----------------------------------------|
+| 0    | `0xFFFFFF00` | DATA[0]  | W         | x0 (register dump word, written by runtime) |
+| …    | …            | …        | W         | …                                       |
+| 31   | `0xFFFFFF7C` | DATA[31] | W         | x31                                     |
+| 61   | `0xFFFFFFF4` | RLEVEL   | R         | AXI Stream receive FIFO fill level      |
+| 62   | `0xFFFFFFF8` | PUTC     | R/W       | Write: send byte via AXI Stream; Read: receive byte |
+| 63   | `0xFFFFFFFC` | EXIT     | W         | Write anything to halt the processor    |
+
+Words 32–60 are reserved and return 0 on read.
+
+### AXI-Lite register map (master-side, byte addresses)
+
+An external AXI4-Lite master (e.g. a Zynq PS or Vivado IP) controls the core through
+`saxil.sv`. Address width is 8 bits; data width is 32 bits.
+
+**Read port — register dump (addresses `0x00`–`0x7C`):**
+
+| Byte address | Contents            |
+|--------------|---------------------|
+| `0x00`       | DATA[0] = x0        |
+| …            | …                   |
+| `0x7C`       | DATA[31] = x31      |
+
+Reads outside `0x00`–`0x7C` return 0.
+
+**Write port — control registers:**
+
+| Byte address | Register     | Reset | Meaning                        |
+|--------------|--------------|-------|--------------------------------|
+| `0x80`       | `imem_base`  | `0`   | Instruction memory base address |
+| `0x84`       | `imem_bound` | `0`   | Instruction memory bound address |
+| `0x88`       | `dmem_base`  | `0`   | Data memory base address        |
+| `0x8C`       | `dmem_bound` | `0`   | Data memory bound address       |
 
 ## Test Programs
 
 Programs live under `test/prog/`. Each `.c` or `.s` file at the top level of that
-directory is a runnable program (invoked with `++test <name>`). The `util/` subdirectory
+directory is a runnable program (invoked with `++core_test <name>`). The `util/` subdirectory
 is not directly invocable — it provides the shared startup and runtime linked into every
 program:
 
@@ -115,16 +146,20 @@ program:
 
 The core is a 4-stage in-order pipeline: **Fetch → Decode → Execute/Mem → Writeback**.
 
-- **Fetch** issues word-addressed reads to the MMU → icache → dram_mem (IMEM, 4 KB).
+- **Fetch** issues word-addressed reads to the icache → dram_mem (IMEM, 4 KB).
 - **Decode** extracts instruction fields and reads the register file.
 - **Execute/Mem** computes the ALU result, resolves branches, and issues load/store
-  requests to the MMU. Branches annul the in-flight fetch on a taken path.
+  requests to the shim. Branches annul the in-flight fetch on a taken path.
 - **Writeback** completes loads (stalls until dmem_rsp.vld) and writes the register file.
 - **Register file** (`rf.sv`) uses two distributed-RAM instances for simultaneous dual read.
-- **MMU** (`mmu.sv`) splits the data path: addresses in `0xFFFFFF00–0xFFFFFFFF` route to
-  MMIO, everything else routes to the dcache.
+- **Shim** (`shim.sv`) sits between the pipeline and the dcache. It decodes the data
+  address: MMIO addresses (`0xFFFFFF00–0xFFFFFFFF`) are handled locally; everything else
+  is forwarded to the dcache. The shim also bridges the AXI4-Lite slave (`saxil.sv`) for
+  external access to the register-dump RAM and control registers, and exposes an AXI Stream
+  master (putc) and slave (getc/level) for console I/O.
 - `dram_mem` models a 20-cycle-latency DRAM with cache-line granularity. It accepts a
-  `BASE` parameter for OOB detection; `core_wrap` passes `0x80000000` for DMEM.
+  `BASE` parameter for OOB detection; `core_wrap` passes `0x00000000` for IMEM and
+  `0x80000000` for DMEM.
 
 ## Configuration
 
@@ -132,6 +167,10 @@ RTL sources and top modules are declared in `config.json`:
 - `sources` — all `.sv` files compiled by both Verilator and Yosys.
 - `sim_top` — modules with Verilator wrappers (each gets its own `build/<top>/` dir).
 - `syn_top` — modules synthesised individually by Yosys into `syn/<top>.v`.
+
+`run.py` filters `sources` by prefix when building for synthesis: only `src/rtl/`,
+`src/axi/`, and `src/takefive_pkg.sv` are passed to Yosys; wrapper and utility files
+are excluded.
 
 ## RV32I Limitations
 
