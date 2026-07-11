@@ -4,29 +4,7 @@ module saxil (
     input  logic        clk,
     input  logic        rst,
 
-    input  logic [7:0]  s_mmio_araddr,
-    input  logic [2:0]  s_mmio_arprot,
-    input  logic        s_mmio_arvalid,
-    output logic        s_mmio_arready,
-
-    output logic [31:0] s_mmio_rdata,
-    output logic [1:0]  s_mmio_rresp,
-    output logic        s_mmio_rvalid,
-    input  logic        s_mmio_rready,
-
-    input  logic [7:0]  s_mmio_awaddr,
-    input  logic [2:0]  s_mmio_awprot,
-    input  logic        s_mmio_awvalid,
-    output logic        s_mmio_awready,
-
-    input  logic [31:0] s_mmio_wdata,
-    input  logic [3:0]  s_mmio_wstrb,
-    input  logic        s_mmio_wvalid,
-    output logic        s_mmio_wready,
-
-    output logic [1:0]  s_mmio_bresp,
-    output logic        s_mmio_bvalid,
-    input  logic        s_mmio_bready,
+    `s_axil_intf        (mmio),
 
     output logic [4:0]  mmio_raddr,
     input  logic [31:0] mmio_rdata,

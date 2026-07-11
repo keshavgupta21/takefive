@@ -22,9 +22,9 @@ module shim (
 
     output logic                    dbg_pause,
 
-    `s_axil_intf(mmio),
-    `m_axis_intf(axis),
-    `s_axis_intf(axis)
+    `s_axil_intf                   (mmio),
+    `m_axis_intf                   (axis),
+    `s_axis_intf                   (axis)
     );
 
     // ---- imem passthrough ----
