@@ -88,6 +88,89 @@
     input  logic [31:0] s_``name``_level
 
 // ---------------------------------------------------------------------------
+// Wire port declarations (plain Verilog, e.g. for Vivado wrappers)
+// ---------------------------------------------------------------------------
+
+// Slave: module receives commands from master; addr_w=8, data_w=32
+`define s_axil_intf_wire(name) \
+    input  wire [7:0]  s_``name``_araddr, \
+    input  wire [2:0]  s_``name``_arprot, \
+    input  wire        s_``name``_arvalid, \
+    output wire        s_``name``_arready, \
+    output wire [31:0] s_``name``_rdata, \
+    output wire [1:0]  s_``name``_rresp, \
+    output wire        s_``name``_rvalid, \
+    input  wire        s_``name``_rready, \
+    input  wire [7:0]  s_``name``_awaddr, \
+    input  wire [2:0]  s_``name``_awprot, \
+    input  wire        s_``name``_awvalid, \
+    output wire        s_``name``_awready, \
+    input  wire [31:0] s_``name``_wdata, \
+    input  wire [3:0]  s_``name``_wstrb, \
+    input  wire        s_``name``_wvalid, \
+    output wire        s_``name``_wready, \
+    output wire [1:0]  s_``name``_bresp, \
+    output wire        s_``name``_bvalid, \
+    input  wire        s_``name``_bready
+
+// Master (32-bit addr + data): drives commands over a full AXI bus
+`define m_axi_intf_wire(name) \
+    output wire [31:0] m_``name``_araddr, \
+    output wire [2:0]  m_``name``_arprot, \
+    output wire        m_``name``_arvalid, \
+    input  wire        m_``name``_arready, \
+    input  wire [31:0] m_``name``_rdata, \
+    input  wire [1:0]  m_``name``_rresp, \
+    input  wire        m_``name``_rvalid, \
+    output wire        m_``name``_rready, \
+    output wire [31:0] m_``name``_awaddr, \
+    output wire [2:0]  m_``name``_awprot, \
+    output wire        m_``name``_awvalid, \
+    input  wire        m_``name``_awready, \
+    output wire [31:0] m_``name``_wdata, \
+    output wire [3:0]  m_``name``_wstrb, \
+    output wire        m_``name``_wvalid, \
+    input  wire        m_``name``_wready, \
+    input  wire [1:0]  m_``name``_bresp, \
+    input  wire        m_``name``_bvalid, \
+    output wire        m_``name``_bready
+
+// Master (8-bit addr, 32-bit data): drives commands to slave
+`define m_axil_intf_wire(name) \
+    output wire [7:0]  m_``name``_araddr, \
+    output wire [2:0]  m_``name``_arprot, \
+    output wire        m_``name``_arvalid, \
+    input  wire        m_``name``_arready, \
+    input  wire [31:0] m_``name``_rdata, \
+    input  wire [1:0]  m_``name``_rresp, \
+    input  wire        m_``name``_rvalid, \
+    output wire        m_``name``_rready, \
+    output wire [7:0]  m_``name``_awaddr, \
+    output wire [2:0]  m_``name``_awprot, \
+    output wire        m_``name``_awvalid, \
+    input  wire        m_``name``_awready, \
+    output wire [31:0] m_``name``_wdata, \
+    output wire [3:0]  m_``name``_wstrb, \
+    output wire        m_``name``_wvalid, \
+    input  wire        m_``name``_wready, \
+    input  wire [1:0]  m_``name``_bresp, \
+    input  wire        m_``name``_bvalid, \
+    output wire        m_``name``_bready
+
+// Master: module drives tvalid/tdata
+`define m_axis_intf_wire(name) \
+    output wire        m_``name``_tvalid, \
+    input  wire        m_``name``_tready, \
+    output wire [31:0] m_``name``_tdata
+
+// Slave: module receives tvalid/tdata plus a level sideband
+`define s_axis_intf_wire(name) \
+    input  wire        s_``name``_tvalid, \
+    output wire        s_``name``_tready, \
+    input  wire [31:0] s_``name``_tdata, \
+    input  wire [31:0] s_``name``_level
+
+// ---------------------------------------------------------------------------
 // Instantiation connection macros
 // ---------------------------------------------------------------------------
 

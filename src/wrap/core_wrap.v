@@ -10,11 +10,11 @@ module core_wrap (
     output wire        dbg_commit,
     output wire        dbg_pipe_busy,
 
-    `s_axil_intf        (mmio),
-    `m_axis_intf        (axis),
-    `s_axis_intf        (axis),
-    `m_axi_intf         (imem),
-    `m_axi_intf         (dmem)
+    `s_axil_intf_wire   (mmio),
+    `m_axis_intf_wire   (axis),
+    `s_axis_intf_wire   (axis),
+    `m_axi_intf_wire    (imem),
+    `m_axi_intf_wire    (dmem)
 );
 
     core u_core(
