@@ -176,7 +176,7 @@ def build_tb_syn(quiet=False):
 # Program compilation
 # ---------------------------------------------------------------------------
 
-def compile_prog(progname, quiet=False):
+def compile_to_bytes(progname, quiet=False):
     build = ROOT / "build"
     build.mkdir(parents=True, exist_ok=True)
 
@@ -207,8 +207,16 @@ def compile_prog(progname, quiet=False):
          "-O", "binary", str(elf), str(dbin)],
         quiet=quiet)
 
-    def to_mem(bin_path, mem_path):
-        raw = bin_path.read_bytes() if bin_path.exists() else b""
+    imem_bytes = ibin.read_bytes() if ibin.exists() else b""
+    dmem_bytes = dbin.read_bytes() if dbin.exists() else b""
+    return imem_bytes, dmem_bytes
+
+
+def compile_prog(progname, quiet=False):
+    build = ROOT / "build"
+    imem_bytes, dmem_bytes = compile_to_bytes(progname, quiet=quiet)
+
+    def to_mem(raw, mem_path):
         with open(mem_path, "w") as f:
             for i in range(DRAM_WORDS):
                 off = i * 4
@@ -221,8 +229,8 @@ def compile_prog(progname, quiet=False):
                     word = 0
                 f.write(f"{word:08x}\n")
 
-    to_mem(ibin, build / "inst.mem")
-    to_mem(dbin, build / "data.mem")
+    to_mem(imem_bytes, build / "inst.mem")
+    to_mem(dmem_bytes, build / "data.mem")
     if not quiet:
         print(f"==> build/inst.mem and build/data.mem written ({DRAM_WORDS} words each)")
 

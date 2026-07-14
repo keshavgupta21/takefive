@@ -1,3 +1,4 @@
 .claude/
 syn/
 build/
+__pycache__
